@@ -7,6 +7,14 @@ extends RefCounted
 
 var m: Motore
 var carattere := 1        # 0 prudente, 1 normale, 2 aggressivo
+# parametri della difesa alleata (tarati con le partite automatiche)
+var p_minaccia := 0.55    # quota della forza nemica raggiungibile che si stima arrivi su un esagono
+var p_resistere := 1.0    # 1: chi vince sopravvivendo usa sganciamenti e ripiegamenti
+var p_rischio_res := 1.0  # peso del rischio per chi resiste
+var p_wavre := 1.0        # Wavre: sganciamento per uscire
+var p_villaggi := 1.0     # Ligny: presidiare e riprendere i villaggi
+var p_peso := 1.6        # quanto chi difende pesa le proprie perdite
+var p_libera := 0.5       # valore delle unità amiche liberate dall'accerchiamento
 var piano: Array = []
 var chiave := ""
 var _fatto := ""
@@ -46,6 +54,23 @@ func aggressivo(lato: int, es := "") -> bool:
 		"campagna":
 			return lato == Motore.FR or (es == "PR" and m.giorno() == 18)
 	return lato == Motore.FR
+
+## Resistere: chi vince semplicemente sopravvivendo fino a sera (Wellington alla Belle Alliance,
+## Blücher a Ligny) cede terreno piuttosto che farsi accerchiare
+func resistere(lato: int, es := "") -> bool:
+	if lato != Motore.AL or p_resistere <= 0.0:
+		return false
+	match m.s["scen"]:
+		"bellealliance":
+			return es != "PR"
+		"ligny":
+			return true
+		"quatrebras":
+			return true
+		"wavre":
+			# sganciarsi serve per uscire dalla mappa (punti) e per non lasciare unità ai Francesi
+			return p_wavre > 0.0
+	return false
 
 func soglia(lato: int) -> int:
 	# colonna minima per un attacco voluto
@@ -172,6 +197,8 @@ func _capienza(h: String) -> int:
 # Movimento
 
 var _occ_piano := {}
+var _minaccia := {}
+var _forza_piano := {}
 var _retroguardia := {}
 var _presidio := {}
 
@@ -213,6 +240,12 @@ func _pianifica_movimento(lato: int) -> Array:
 		if u["st"] == "mappa" and m.lato_di(id) == lato:
 			_occ_piano[u["h"]] = _occ_piano.get(u["h"], 0) + 1
 	var nem := _nemici(lato)
+	_minaccia = _calcola_minaccia(lato, nem) if (resistere(lato, "AA") or resistere(lato, "PR")) else {}
+	_forza_piano = {}
+	for id in m.s["unita"]:
+		if m.s["unita"][id]["st"] == "mappa" and m.lato_di(id) == lato:
+			var hh: String = m.s["unita"][id]["h"]
+			_forza_piano[hh] = _forza_piano.get(hh, 0.0) + m.forza(id)
 	# unità che possono muovere (e rinforzi), con le loro destinazioni possibili
 	var mobili := {}
 	for id in m.s["unita"]:
@@ -245,11 +278,15 @@ func _pianifica_movimento(lato: int) -> Array:
 		"quatrebras":
 			if lato == Motore.AL:
 				chiave_hex = ["1641"]
+		"ligny":
+			if lato == Motore.AL and p_villaggi > 0.0:
+				# ogni villaggio perso abbassa di 3 la soglia di demoralizzazione prussiana
+				chiave_hex = obiettivi(lato)
 	for hk in chiave_hex:
 		var best := ""
 		var bd := 99
 		for id in mobili:
-			if _presidio.has(id) or m.esercito(id) == "PR" or not mobili[id]["rg"].has(hk):
+			if _presidio.has(id) or (m.esercito(id) == "PR" and m.s["scen"] == "bellealliance") or not mobili[id]["rg"].has(hk):
 				continue
 			var d := Mappa.distanza(mobili[id]["da"] if mobili[id]["da"] != "" else hk, hk)
 			if d < bd:
@@ -295,10 +332,57 @@ func _pianifica_movimento(lato: int) -> Array:
 		if mobili[id]["da"] != "":
 			_occ_piano[mobili[id]["da"]] = _occ_piano.get(mobili[id]["da"], 1) - 1
 		_occ_piano[best] = _occ_piano.get(best, 0) + 1
+		_forza_piano[best] = _forza_piano.get(best, 0.0) + m.forza(id)
+		if mobili[id]["da"] != "":
+			_forza_piano[mobili[id]["da"]] = _forza_piano.get(mobili[id]["da"], 0.0) - m.forza(id)
 	# 3. capi (campagna)
 	if m.campagna():
 		out.append_array(_muovi_capi(lato))
 	return out
+
+## Forza nemica che può colpire ciascun esagono nel prossimo turno (movimento più attacco,
+## artiglieria anche a due esagoni): serve a chi difende per non esporsi a rapporti schiaccianti
+func _calcola_minaccia(lato: int, nem: Array) -> Dictionary:
+	var pot := {}
+	for e in nem:
+		var f := m.forza_att(e)
+		var art: bool = m.tipo(e) in ["A", "HA"]
+		var h0: String = m.s["unita"][e]["h"]
+		var rg: Dictionary = {h0: {"c": 0}} if m.in_ezoc(e) else m.raggiungibili(e, h0)
+		var toccati := {}
+		for r in rg:
+			for x in Mappa.vicini(r):
+				if Mappa.passabile(r, x) and not (Mappa.fiume(r, x) and not Mappa.ponte(r, x)):
+					toccati[x] = true
+				if art:
+					for y in Mappa.vicini(x):
+						toccati[y] = true
+		for x in toccati:
+			pot[x] = pot.get(x, 0.0) + f
+	return pot
+
+## Perdita attesa (in punti forza) di chi difende h con forza sp contro la minaccia stimata
+func rischio(h: String, sp: float, chiuso: bool) -> float:
+	var minac: float = _minaccia.get(h, 0.0) * p_minaccia
+	if minac <= 0.0 or sp <= 0.0:
+		return 0.0
+	var dif := sp
+	match Mappa.terreno(h):
+		"citta":
+			dif *= 2.0
+		"castello":
+			dif *= 3.0
+	var col := Dati.colonna(minac, dif)
+	var v := 0.0
+	for r in 6:
+		match Dati.TRC[r][col]:
+			"DE": v += sp
+			"DR": v += sp if chiuso else 0.15 * sp
+			"EX": v += sp
+	return v / 6.0
+
+func _peso_rischio(lato: int, es := "") -> float:
+	return p_rischio_res if resistere(lato, es) else 0.0
 
 func _uscita(id: String, lato: int, info: Dictionary) -> String:
 	match m.s["scen"]:
@@ -342,6 +426,7 @@ func _pianifica_attacchi(lato: int, mobili: Dictionary, nem: Array) -> Array:
 	var usate := {}
 	var aggr := aggressivo(lato)
 	var limite := 6 if aggr else 2
+	var soglia_min := soglia(lato)
 	for x in lista:
 		if risultato.size() >= limite:
 			break
@@ -396,12 +481,12 @@ func _pianifica_attacchi(lato: int, mobili: Dictionary, nem: Array) -> Array:
 			forza += m.forza_att(id)
 			tipi[m.tipo(id).substr(0, 1)] = true
 			mosse.append({"a": "entra" if mobili[id]["arr"] else "muovi", "u": id, "h": h})
-			if Dati.colonna(forza, dif) >= soglia(lato) + 1:
+			if Dati.colonna(forza, dif) >= soglia_min + 1:
 				break
 		var col := Dati.colonna(forza, dif)
 		if m.s["opzioni"].get("armi_combinate", true) and tipi.has("I") and tipi.has("C") and tipi.has("A"):
 			col += 1
-		if col >= soglia(lato) and not mosse.is_empty():
+		if col >= soglia_min and not mosse.is_empty():
 			# l'attacco deve avere almeno un'unità adiacente
 			var adi := false
 			for mv in mosse:
@@ -498,6 +583,15 @@ func _miglior_posto(id: String, lato: int, info: Dictionary, nem: Array) -> Stri
 			# due unità nei paesi: la difesa raddoppiata vale doppio
 			if Mappa.terreno(h) == "citta" and _occ_piano.get(h, 0) == 1:
 				v += 1.0
+		# esposizione: quanto si rischia di perdere restando qui nel turno nemico
+		var pr := _peso_rischio(lato, m.esercito(id))
+		if pr > 0.0 and dn <= 8:
+			var lib := 0
+			for x in Mappa.vicini(h):
+				if Mappa.passabile(h, x) and not m.nemico_in(x, lato) and _dist_nemico(x, lato, nem) > 1:
+					lib += 1
+			var sp: float = float(m.forza(id)) + _forza_piano.get(h, 0.0) - (float(m.forza(id)) if h == h0 else 0.0)
+			v -= pr * rischio(h, sp, lib <= 1)
 		if tp in ["A", "HA"] and in_z:
 			v -= 3.0
 		if tp in ["A", "HA"] and dn == 2:
@@ -605,91 +699,17 @@ func _pianifica_attacchi_fase(lato: int) -> Array:
 			if Mappa.adiacenti(h, e) and not (Mappa.fiume(h, e) and not Mappa.ponte(h, e)):
 				b.append(e)
 		bersagli_di[h] = b
-	var attaccanti_di := {}
-	for e in ob["nemici"]:
-		attaccanti_di[e] = []
-		for h in gruppi:
-			if e in bersagli_di[h]:
-				attaccanti_di[e].append(h)
-	# assegnazione: ogni gruppo al bersaglio con meno pretendenti
-	var assegnato := {}
-	for h in gruppi:
-		var b: Array = bersagli_di[h]
-		if b.is_empty():
-			continue
-		b.sort_custom(func(x, y): return attaccanti_di[x].size() < attaccanti_di[y].size())
-		assegnato[h] = b[0]
-	# ogni bersaglio deve avere almeno un attaccante
-	for e in ob["nemici"]:
-		var ha := false
-		for h in assegnato:
-			if assegnato[h] == e:
-				ha = true
-		if ha:
-			continue
-		for h in attaccanti_di[e]:
-			var altro: String = assegnato.get(h, "")
-			var conta := 0
-			for x in assegnato:
-				if assegnato[x] == altro:
-					conta += 1
-			if conta > 1:
-				assegnato[h] = e
-				ha = true
-				break
-		if not ha and not attaccanti_di[e].is_empty():
-			# attacco su due esagoni
-			var h: String = attaccanti_di[e][0]
-			assegnato[h] = assegnato.get(h, "") + "+" + e
-	# miglioramento: sposta i gruppi fra i bersagli finché cresce il valore atteso totale
-	# (attacchi diversivi deboli dove serve, il grosso dove si ottiene un buon rapporto)
-	for _giro in 4:
-		var migliorato := false
-		for h in assegnato.keys():
-			if String(assegnato[h]).begins_with("+") or String(assegnato[h]).contains("+"):
-				continue
-			var b: Array = bersagli_di[h]
-			if b.size() < 2:
-				continue
-			var att0: String = assegnato[h]
-			var resto := 0
-			for x in assegnato:
-				if assegnato[x] == att0 and x != h:
-					resto += 1
-			if resto == 0:
-				continue
-			var base := _valore_assegnazione(assegnato, gruppi, lato)
-			for e in b:
-				if e == att0:
-					continue
-				assegnato[h] = e
-				var nv := _valore_assegnazione(assegnato, gruppi, lato)
-				if nv > base + 0.05:
-					base = nv
-					att0 = e
-					migliorato = true
-				else:
-					assegnato[h] = att0
-		if not migliorato:
-			break
-	# compone gli attacchi
-	var attacchi := {}
-	for h in assegnato:
-		var k: String = assegnato[h]
-		if k.begins_with("+"):
-			k = k.substr(1)
-		if not attacchi.has(k):
-			attacchi[k] = []
-		attacchi[k].append_array(gruppi[h])
+	var lista: Array
+	if m.s["scen"] == "wavre" and lato == Motore.AL and p_wavre > 0.0:
+		lista = _assegna_classica(gruppi, bersagli_di, ob["nemici"], lato)
+	else:
+		lista = _assegna_obbligati(gruppi, bersagli_di, ob["nemici"], lato)
 	# artiglieria che bombarda: dove alza la colonna, oppure da sola sul bersaglio più debole
 	var artiglieria := []
 	for id in m.s["unita"]:
 		var u: Dictionary = m.s["unita"][id]
 		if u["st"] == "mappa" and m.lato_di(id) == lato and m.tipo(id) in ["A", "HA"] and not u["att"] and not m.in_ezoc(id):
 			artiglieria.append(id)
-	var lista := []
-	for k in attacchi:
-		lista.append({"dif": Array(k.split("+")), "att": attacchi[k]})
 	for a in artiglieria:
 		var migliore := -1
 		var guad := -1
@@ -749,7 +769,280 @@ func _pianifica_attacchi_fase(lato: int) -> Array:
 		return int(vx.get("col", 0)) > int(vy.get("col", 0)))
 	return out
 
-func _valore_assegnazione(assegnato: Dictionary, gruppi: Dictionary, lato: int) -> float:
+## Attacchi obbligatori: ogni gruppo a contatto deve attaccare e ogni nemico a contatto deve essere attaccato.
+## Si cerca la combinazione con il miglior saldo atteso di punti forza (perdite nemiche meno le proprie),
+## con attacchi diversivi a 1-2 (nessun rischio di eliminazione) dove non si può vincere.
+func _assegna_obbligati(gruppi: Dictionary, bersagli_di: Dictionary, nemici: Array, lato: int) -> Array:
+	var hexs: Array = []
+	for h in gruppi:
+		if not bersagli_di[h].is_empty():
+			hexs.append(h)
+	hexs.sort()
+	if hexs.is_empty():
+		return []
+	# per ogni gruppo: le combinazioni di bersagli possibili (al più tre esagoni)
+	var opz := {}
+	for h in hexs:
+		var b: Array = bersagli_di[h].duplicate()
+		b.sort()
+		var lista := []
+		var n := b.size()
+		for mask in range(1, 1 << n):
+			var sub := []
+			for i in n:
+				if mask & (1 << i):
+					sub.append(b[i])
+			if sub.size() <= 3:
+				lista.append("+".join(sub))
+		lista.sort_custom(func(x, y): return x.length() < y.length() or (x.length() == y.length() and x < y))
+		opz[h] = lista
+	_cache_val = {}
+	var scelta := {}
+	for h in hexs:
+		scelta[h] = opz[h][0]
+	# partenza golosa: ogni gruppo al bersaglio singolo che rende di più da solo
+	for h in hexs:
+		var bv := -INF
+		for k in opz[h]:
+			if k.contains("+"):
+				continue
+			var v := _val_attacco(k, gruppi[h], lato)
+			if v > bv:
+				bv = v
+				scelta[h] = k
+	var cur := _val_scelta(scelta, gruppi, nemici, lato)
+	for _giro in 8:
+		var meglio := false
+		# mosse singole
+		for h in hexs:
+			var k0: String = scelta[h]
+			for k in opz[h]:
+				if k == k0:
+					continue
+				scelta[h] = k
+				var v := _val_scelta(scelta, gruppi, nemici, lato)
+				if v > cur + 0.01:
+					cur = v
+					k0 = k
+					meglio = true
+				else:
+					scelta[h] = k0
+		# mosse a coppie: due gruppi sullo stesso attacco
+		for i in hexs.size():
+			for j in range(i + 1, hexs.size()):
+				var hi: String = hexs[i]
+				var hj: String = hexs[j]
+				var ki: String = scelta[hi]
+				var kj: String = scelta[hj]
+				for k in opz[hi]:
+					if not opz[hj].has(k) or (k == ki and k == kj):
+						continue
+					scelta[hi] = k
+					scelta[hj] = k
+					var v := _val_scelta(scelta, gruppi, nemici, lato)
+					if v > cur + 0.01:
+						cur = v
+						ki = k
+						kj = k
+						meglio = true
+					else:
+						scelta[hi] = ki
+						scelta[hj] = kj
+		if not meglio:
+			break
+	var attacchi := {}
+	for h in hexs:
+		var k: String = scelta[h]
+		if not attacchi.has(k):
+			attacchi[k] = []
+		attacchi[k].append_array(gruppi[h])
+	var out := []
+	for k in attacchi:
+		out.append({"dif": Array(k.split("+")), "att": attacchi[k]})
+	return out
+
+var _cache_val := {}
+
+func _val_scelta(scelta: Dictionary, gruppi: Dictionary, nemici: Array, lato: int) -> float:
+	var per := {}
+	for h in scelta:
+		var k: String = scelta[h]
+		if not per.has(k):
+			per[k] = []
+		per[k].append_array(gruppi[h])
+	var tot := 0.0
+	var coperti := {}
+	for k in per:
+		for e in k.split("+"):
+			if coperti.has(e):
+				tot -= 1000.0     # lo stesso nemico attaccato due volte: non ammesso
+			coperti[e] = true
+		tot += _val_attacco(k, per[k], lato)
+	for e in nemici:
+		if not coperti.has(e):
+			tot -= 1000.0
+	return tot
+
+## Saldo atteso in punti forza di un attacco (perdite nemiche meno le proprie, pesate)
+func _val_attacco(k: String, ids: Array, lato: int) -> float:
+	var ord := ids.duplicate()
+	ord.sort()
+	var ck := k + "|" + ",".join(ord)
+	if _cache_val.has(ck):
+		return _cache_val[ck]
+	var va := m.valuta_attacco({"dif": Array(k.split("+")), "att": ids})
+	var v := -500.0
+	if va["ok"]:
+		v = saldo_atteso(va, lato)
+	_cache_val[ck] = v
+	return v
+
+## Punti forza amici oggi senza ritirata che l'avrebbero se gli esagoni nemici "via" fossero sgombri
+func _sp_liberati(via: Array, lato: int) -> float:
+	var tot := 0.0
+	var visti := {}
+	for e in via:
+		for a in Mappa.vicini(e):
+			for b in [a] + Mappa.vicini(a):
+				if visti.has(b) or via.has(b) or m.lato_hex(b) != lato:
+					continue
+				visti[b] = true
+				if not senza_ritirata(b, lato):
+					continue
+				# con il nemico respinto, b avrebbe un esagono libero?
+				for x in Mappa.vicini(b):
+					if via.has(x) or not Mappa.passabile(b, x) or m.nemico_in(x, lato):
+						continue
+					var z := false
+					for y in Mappa.vicini(x):
+						if not via.has(y) and m.lato_hex(y) == 1 - lato and not (Mappa.fiume(y, x) and not Mappa.ponte(y, x)):
+							z = true
+							break
+					if not z and Mappa.terreno(x) != "castello":
+						tot += m.sp_in(b, lato)
+						break
+	return tot
+
+func saldo_atteso(va: Dictionary, lato: int) -> float:
+	var col := int(va["col"])
+	var att_sp := 0.0
+	var att_chiusi := 0.0
+	for id in va["adiac"]:
+		var f := float(m.forza(id))
+		att_sp += f
+		if senza_ritirata(m.s["unita"][id]["h"], lato):
+			att_chiusi += f
+	var dif_sp := 0.0
+	var dif_chiusi := 0.0
+	for id in va["difensori"]:
+		var f := float(m.forza(id))
+		dif_sp += f
+		if senza_ritirata(m.s["unita"][id]["h"], 1 - lato):
+			dif_chiusi += f
+	# chi difende preferisce conservare le truppe
+	var peso := 1.0 if aggressivo(lato) else p_peso
+	var res := resistere(lato)
+	# liberazione: respingere il nemico riapre la via di ritirata a unità amiche accerchiate
+	var liberati := _sp_liberati(va["dif_hex"], lato) * p_libera
+	var obi := obiettivi(lato)
+	for h in va["dif_hex"]:
+		if h in obi:
+			liberati += 3.0 * p_villaggi
+	var v := 0.0
+	for r in 6:
+		match Dati.TRC[r][clampi(col, 0, 9)]:
+			"DE": v += dif_sp + liberati
+			"DR": v += dif_chiusi + 0.15 * dif_sp + liberati
+			"EX": v += dif_sp - peso * minf(att_sp, dif_sp) + liberati
+			"AR": v -= peso * (att_chiusi + (-0.3 if res else 0.15) * (att_sp - att_chiusi))
+			"AE": v -= peso * att_sp
+	return v / 6.0
+
+## Assegnazione classica degli attacchi obbligatori (bersaglio con meno pretendenti, poi miglioramento
+## sul valore atteso per colonna): a Wavre produce più sganciamenti utili all'uscita dei Prussiani
+func _assegna_classica(gruppi: Dictionary, bersagli_di: Dictionary, nemici: Array, lato: int) -> Array:
+	var attaccanti_di := {}
+	for e in nemici:
+		attaccanti_di[e] = []
+		for h in gruppi:
+			if e in bersagli_di[h]:
+				attaccanti_di[e].append(h)
+	# assegnazione: ogni gruppo al bersaglio con meno pretendenti
+	var assegnato := {}
+	for h in gruppi:
+		var b: Array = bersagli_di[h]
+		if b.is_empty():
+			continue
+		b.sort_custom(func(x, y): return attaccanti_di[x].size() < attaccanti_di[y].size())
+		assegnato[h] = b[0]
+	# ogni bersaglio deve avere almeno un attaccante
+	for e in nemici:
+		var ha := false
+		for h in assegnato:
+			if assegnato[h] == e:
+				ha = true
+		if ha:
+			continue
+		for h in attaccanti_di[e]:
+			var altro: String = assegnato.get(h, "")
+			var conta := 0
+			for x in assegnato:
+				if assegnato[x] == altro:
+					conta += 1
+			if conta > 1:
+				assegnato[h] = e
+				ha = true
+				break
+		if not ha and not attaccanti_di[e].is_empty():
+			# attacco su due esagoni
+			var h: String = attaccanti_di[e][0]
+			assegnato[h] = assegnato.get(h, "") + "+" + e
+	# miglioramento: sposta i gruppi fra i bersagli finché cresce il valore atteso totale
+	# (attacchi diversivi deboli dove serve, il grosso dove si ottiene un buon rapporto)
+	for _giro in 4:
+		var migliorato := false
+		for h in assegnato.keys():
+			if String(assegnato[h]).begins_with("+") or String(assegnato[h]).contains("+"):
+				continue
+			var b: Array = bersagli_di[h]
+			if b.size() < 2:
+				continue
+			var att0: String = assegnato[h]
+			var resto := 0
+			for x in assegnato:
+				if assegnato[x] == att0 and x != h:
+					resto += 1
+			if resto == 0:
+				continue
+			var base := _valore_classico(assegnato, gruppi, lato)
+			for e in b:
+				if e == att0:
+					continue
+				assegnato[h] = e
+				var nv := _valore_classico(assegnato, gruppi, lato)
+				if nv > base + 0.05:
+					base = nv
+					att0 = e
+					migliorato = true
+				else:
+					assegnato[h] = att0
+		if not migliorato:
+			break
+	# compone gli attacchi
+	var attacchi := {}
+	for h in assegnato:
+		var k: String = assegnato[h]
+		if k.begins_with("+"):
+			k = k.substr(1)
+		if not attacchi.has(k):
+			attacchi[k] = []
+		attacchi[k].append_array(gruppi[h])
+	var lista := []
+	for k in attacchi:
+		lista.append({"dif": Array(k.split("+")), "att": attacchi[k]})
+	return lista
+
+func _valore_classico(assegnato: Dictionary, gruppi: Dictionary, lato: int) -> float:
 	var per := {}
 	for h in assegnato:
 		var k: String = assegnato[h]
@@ -784,6 +1077,10 @@ func _avanza(rq: Dictionary) -> Dictionary:
 			v += 1.5
 		if Mappa.terreno(h0) in ["citta", "castello"] and not aggressivo(lato):
 			v -= 3.0
+		if h in obiettivi(lato):
+			v += 4.0 * p_villaggi
+		if h0 in obiettivi(lato):
+			v -= 4.0 * p_villaggi
 		if v > bv:
 			bv = v
 			best = c

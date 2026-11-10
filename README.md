@@ -31,6 +31,12 @@ Si gioca qui: https://tannoiser2.github.io/Napoleon-last-Battles/ (e nella ludot
   punti chiave (Waterloo, Quatre Bras), cerca le contropendenze e una via di ritirata in difesa; a Wavre i Prussiani
   lasciano una retroguardia sui ponti della Dyle e fanno uscire il resto, i Francesi puntano ai ponti e all'uscita;
   nella campagna le unità restano vicine ai loro ufficiali. Tre caratteri: prudente, normale, aggressivo.
+  Gli attacchi obbligatori si scelgono cercando la combinazione col miglior saldo atteso di punti forza (perdite
+  nemiche meno le proprie, unità chiuse senza ritirata, unità amiche liberate da un accerchiamento, obiettivi).
+  Dove gli Alleati vincono resistendo (Wellington alla Belle Alliance, i Prussiani a Ligny e a Wavre, Quatre Bras)
+  l'IA alleata usa gli attacchi a 1-2 per sganciarsi, evita le posizioni dove il nemico può arrivare con rapporti
+  schiaccianti e a Ligny presidia, contrattacca e rioccupa i villaggi (ogni villaggio perso abbassa la soglia di
+  demoralizzazione prussiana).
   Spunti dai giocatori esperti: Moves n. 31 (recensione e varianti), il resoconto di Ligny di George Nap
   (spigames.net), le recensioni di Wavre e Ligny.
 - **Online** (`scripts/rete.gd`): stanza con codice di 4 lettere, decisioni numerate nel registro della stanza
@@ -57,6 +63,7 @@ Si gioca qui: https://tannoiser2.github.io/Napoleon-last-Battles/ (e nella ludot
 
 ```
 tests/corri.sh sim.gd bellealliance 4          # partite automatiche IA contro IA (anche ligny, quatrebras, wavre, campagna)
+godot --headless --path . -s res://tests/sim.gd -- ligny 10 0 --fr_vecchia   # IA attuale contro la Francia della versione 1.0
 xvfb-run godot --path . -s res://tests/foto.gd -- combattimento bellealliance   # screenshot
 GODOT=godot tests/prova_online.sh              # due copie del gioco online su un finto Firebase
 python3 tools/controlla_glifi.py               # ogni carattere dei testi e dei dati esiste nei font

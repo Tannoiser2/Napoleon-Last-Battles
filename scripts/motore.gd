@@ -8,6 +8,10 @@ extends RefCounted
 static var catalogo := {}
 static var scenari := {}
 
+var causa := ""
+var diagnosi := false
+var ultimo_mov := {}
+var stat := {}
 var s := {}
 var scen := {}
 var eventi: Array = []
@@ -520,6 +524,7 @@ func _muovi(d: Dictionary) -> bool:
 	if not rg.has(h) or h == s["unita"][id]["h"]:
 		return false
 	var da: String = s["unita"][id]["h"]
+	ultimo_mov[id] = int(s["turno"])
 	s["unita"][id]["h"] = h
 	s["unita"][id]["mosso"] = true
 	for x in percorso(rg, h):
@@ -944,7 +949,8 @@ func linea_di_tiro(a: String, b: String) -> bool:
 ## Forza in attacco di un'unità (cavalleria dimezzata in bosco o palude)
 func forza_att(id: String) -> float:
 	var f := float(forza(id))
-	if tipo(id) == "C" and Mappa.terreno(s["unita"][id]["h"]) in ["bosco", "palude"]:
+	var h: String = str(s["unita"][id].get("h", ""))
+	if tipo(id) == "C" and Mappa.esagoni.has(h) and Mappa.terreno(h) in ["bosco", "palude"]:
 		f = ceilf(f / 2.0)
 	return f
 
@@ -1124,6 +1130,7 @@ func _attacco(d: Dictionary) -> bool:
 				guardia = true
 	var dem_prima: Dictionary = s["dem"].duplicate()
 	var liberati := []    # esagoni lasciati liberi dal perdente
+	causa = ris
 	match ris:
 		"AE":
 			for id in v["adiac"]:
@@ -1146,6 +1153,7 @@ func _attacco(d: Dictionary) -> bool:
 				rep["elim"].append(id)
 			liberati = dif_hex.duplicate()
 			if ris == "EX":
+				causa = "EXatt"
 				for id in _scegli_scambio(v["adiac"], sp_dif):
 					_elimina(id)
 					rep["elim"].append(id)
@@ -1156,6 +1164,7 @@ func _attacco(d: Dictionary) -> bool:
 				else:
 					rep["elim"].append(id)
 			liberati = dif_hex.duplicate()
+	causa = ""
 	_ricalcola()
 	for h in liberati.duplicate():
 		_capi_rimasti_soli(h)
@@ -1257,6 +1266,9 @@ func _elimina(id: String, riorganizzabile := true) -> void:
 	else:
 		u["st"] = "elim"
 	s["perdite"][es] = int(s["perdite"][es]) + sp
+	# statistica per le prove automatiche (non fa parte dello stato della partita)
+	var kc := "%s:%s" % [es, causa if causa != "" else "altro"]
+	stat[kc] = int(stat.get(kc, 0)) + sp
 	# punti vittoria per le perdite
 	match s["scen"]:
 		"quatrebras", "wavre", "ligny":
@@ -1271,7 +1283,7 @@ func _ritira(id: String) -> bool:
 	_ricalcola()
 	var best := ""
 	var bv := -INF
-	var spostare := ""
+	var catena := []
 	for v in Mappa.vicini(h0):
 		if not Mappa.passabile(h0, v) or nemico_in(v, lato) or zoc(v, 1 - lato):
 			continue
@@ -1280,37 +1292,66 @@ func _ritira(id: String) -> bool:
 			continue
 		var limite := 1 if Mappa.terreno(v) == "castello" else 2
 		var val := _valore_ritirata(v, lato)
-		var sposta := ""
+		var sposta := []
 		if amici.size() >= limite:
-			# spostamento di un'unità amica, se questa ha a sua volta dove andare
-			sposta = _chi_spostare(v, lato, h0)
-			if sposta == "":
+			# spostamento (7.6): un'unità amica cede il posto, anche a catena, se ha dove andare
+			sposta = _catena_spostamento(v, lato, {h0: true, v: true}, 3)
+			if sposta.is_empty():
 				continue
-			val -= 3.0
+			val -= 3.0 + sposta.size()
 		if val > bv:
 			bv = val
 			best = v
-			spostare = sposta
+			catena = sposta
 	if best == "":
+		if diagnosi:
+			var mot := []
+			for v in Mappa.vicini(h0):
+				if not Mappa.passabile(h0, v):
+					mot.append("imp")
+				elif nemico_in(v, lato):
+					mot.append("nem")
+				elif zoc(v, 1 - lato):
+					mot.append("zoc" + ("+am" if not unita_in(v, lato).is_empty() else ""))
+				else:
+					mot.append("pieno")
+			stat["blocchi"] = stat.get("blocchi", []) + [" ".join(mot)]
+			var dt := int(s["turno"]) - int(ultimo_mov.get(id, -9))
+			var kk := "fermo_da_%d" % mini(dt, 3)
+			stat[kk] = int(stat.get(kk, 0)) + 1
 		_elimina(id)
 		return false
-	if spostare != "":
-		var p := spostare.split(">")
+	# la catena è in ordine dall'esagono di arrivo verso l'ultimo spostato: si applica dal fondo
+	for i in range(catena.size() - 1, -1, -1):
+		var p: PackedStringArray = String(catena[i]).split(">")
 		s["unita"][p[0]]["h"] = p[1]
 	s["unita"][id]["h"] = best
 	_ricalcola()
 	return true
 
-func _chi_spostare(h: String, lato: int, escluso: String) -> String:
-	if Mappa.terreno(h) == "castello":
-		return ""
+## Cerca chi spostare da h (pieno) e dove; se anche la destinazione è piena si prosegue a catena.
+## Restituisce ["id>esagono", ...] oppure [] se nessuna catena è possibile.
+func _catena_spostamento(h: String, lato: int, visti: Dictionary, prof: int) -> Array:
+	if Mappa.terreno(h) == "castello" or prof <= 0:
+		return []
+	var pieni := []
 	for x in unita_in(h, lato):
 		for v in Mappa.vicini(h):
-			if v == escluso or not Mappa.passabile(h, v) or nemico_in(v, lato) or zoc(v, 1 - lato):
+			if visti.has(v) or not Mappa.passabile(h, v) or nemico_in(v, lato) or zoc(v, 1 - lato):
 				continue
-			if unita_in(v, lato).size() < (1 if Mappa.terreno(v) == "castello" else 2):
-				return x + ">" + v
-	return ""
+			var lim := 1 if Mappa.terreno(v) == "castello" else 2
+			var occ := unita_in(v, lato).size()
+			if occ < lim:
+				return [x + ">" + v]
+			if Mappa.terreno(v) != "castello":
+				pieni.append([x, v])
+	for c in pieni:
+		var v2: Dictionary = visti.duplicate()
+		v2[c[1]] = true
+		var resto := _catena_spostamento(c[1], lato, v2, prof - 1)
+		if not resto.is_empty():
+			return [c[0] + ">" + c[1]] + resto
+	return []
 
 func _valore_ritirata(h: String, lato: int) -> float:
 	var v := 0.0
