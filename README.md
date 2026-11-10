@@ -36,7 +36,8 @@ Si gioca qui: https://tannoiser2.github.io/Napoleon-last-Battles/ (e nella ludot
   Dove gli Alleati vincono resistendo (Wellington alla Belle Alliance, i Prussiani a Ligny e a Wavre, Quatre Bras)
   l'IA alleata usa gli attacchi a 1-2 per sganciarsi, evita le posizioni dove il nemico può arrivare con rapporti
   schiaccianti e a Ligny presidia, contrattacca e rioccupa i villaggi (ogni villaggio perso abbassa la soglia di
-  demoralizzazione prussiana).
+  demoralizzazione prussiana); a Quatre Bras l'incrocio è tenuto dalle due fanterie più forti (il paese raddoppia
+  la difesa) e gli Alleati restano in difesa fino a sera.
   Spunti dai giocatori esperti: Moves n. 31 (recensione e varianti), il resoconto di Ligny di George Nap
   (spigames.net), le recensioni di Wavre e Ligny.
 - **Online** (`scripts/rete.gd`): stanza con codice di 4 lettere, decisioni numerate nel registro della stanza

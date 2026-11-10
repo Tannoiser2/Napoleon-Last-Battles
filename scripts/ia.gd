@@ -11,6 +11,9 @@ var carattere := 1        # 0 prudente, 1 normale, 2 aggressivo
 var p_minaccia := 0.55    # quota della forza nemica raggiungibile che si stima arrivi su un esagono
 var p_resistere := 1.0    # 1: chi vince sopravvivendo usa sganciamenti e ripiegamenti
 var p_rischio_res := 1.0  # peso del rischio per chi resiste
+var p_qb_attacco := 99.0  # Quatre Bras: turno da cui gli Alleati passano all'attacco
+var p_coesione := 0.0     # chi resiste: valore di ogni esagono amico accanto (fino a 3)
+var p_presidio := 1.0     # presidi affidati alle unità più forti (Quatre Bras: due unità nel paese)
 var p_wavre := 1.0        # Wavre: sganciamento per uscire
 var p_villaggi := 1.0     # Ligny: presidiare e riprendere i villaggi
 var p_peso := 1.6        # quanto chi difende pesa le proprie perdite
@@ -48,7 +51,7 @@ func aggressivo(lato: int, es := "") -> bool:
 				return true
 			return es == "PR" and m.s["scen"] == "bellealliance"
 		"quatrebras":
-			return lato == Motore.FR or int(m.s["turno"]) >= 3
+			return lato == Motore.FR or int(m.s["turno"]) >= int(p_qb_attacco)
 		"wavre":
 			return lato == Motore.FR
 		"campagna":
@@ -283,17 +286,29 @@ func _pianifica_movimento(lato: int) -> Array:
 				# ogni villaggio perso abbassa di 3 la soglia di demoralizzazione prussiana
 				chiave_hex = obiettivi(lato)
 	for hk in chiave_hex:
-		var best := ""
-		var bd := 99
-		for id in mobili:
-			if _presidio.has(id) or (m.esercito(id) == "PR" and m.s["scen"] == "bellealliance") or not mobili[id]["rg"].has(hk):
-				continue
-			var d := Mappa.distanza(mobili[id]["da"] if mobili[id]["da"] != "" else hk, hk)
-			if d < bd:
-				bd = d
-				best = id
-		if best != "":
-			_presidio[best] = hk
+		# posti da coprire: a Quatre Bras il paese si riempie (la difesa raddoppia), altrove basta un'unità
+		var posti := 1
+		if m.s["scen"] == "quatrebras" and p_presidio > 0.0:
+			posti = _capienza(hk)
+		for x in m.unita_in(hk, lato):
+			if not mobili.has(x):
+				posti -= 1
+		for _n in posti:
+			var best := ""
+			var bv := -INF
+			for id in mobili:
+				if _presidio.has(id) or (m.esercito(id) == "PR" and m.s["scen"] == "bellealliance") or not mobili[id]["rg"].has(hk):
+					continue
+				var d := Mappa.distanza(mobili[id]["da"] if mobili[id]["da"] != "" else hk, hk)
+				var v := -float(d)
+				if p_presidio > 0.0 and m.s["scen"] == "quatrebras":
+					# l'incrocio va alle unità più forti, fanteria prima di tutto (la cavalleria non difende i paesi meglio)
+					v += float(m.forza(id)) * 0.8 + (2.0 if m.tipo(id) == "I" else 0.0)
+				if v > bv:
+					bv = v
+					best = id
+			if best != "":
+				_presidio[best] = hk
 	# uscite
 	for id in mobili.keys():
 		if _retroguardia.has(id) and int(m.s["turno"]) < m.scen["turni"].size() - 1:
@@ -583,6 +598,15 @@ func _miglior_posto(id: String, lato: int, info: Dictionary, nem: Array) -> Stri
 			# due unità nei paesi: la difesa raddoppiata vale doppio
 			if Mappa.terreno(h) == "citta" and _occ_piano.get(h, 0) == 1:
 				v += 1.0
+		# coesione: chi resiste tiene una linea compatta, con i fianchi coperti da unità amiche
+		if p_coesione > 0.0 and resistere(lato, m.esercito(id)) and dn <= 6:
+			var amici := 0
+			for x in Mappa.vicini(h):
+				if _occ_piano.get(x, 0) > 0:
+					amici += 1
+			v += p_coesione * mini(amici, 3)
+			if amici == 0:
+				v -= p_coesione * 2.0
 		# esposizione: quanto si rischia di perdere restando qui nel turno nemico
 		var pr := _peso_rischio(lato, m.esercito(id))
 		if pr > 0.0 and dn <= 8:
