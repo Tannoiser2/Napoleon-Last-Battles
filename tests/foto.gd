@@ -1,6 +1,6 @@
 extends SceneTree
 ## Screenshot dell'interfaccia: xvfb-run godot --path . -s res://tests/foto.gd -- <modo> [scenario]
-## modo: menu | nuova | partita | movimento | combattimento | plance | tabelle | vista | fine
+## modo: menu | nuova | partita | movimento | combattimento | attacco_ia | plance | tabelle | vista | fine
 var main
 func _initialize():
 	main = load("res://scenes/main.tscn").instantiate()
@@ -23,8 +23,17 @@ func _run():
 		quit(); return
 	main.scelta_scen = sc
 	main.scelta_modo = "ia"
-	main.scelta_lato = 0
+	main.scelta_lato = 1 if modo == "attacco_ia" else 0
 	main._avvia_locale()
+	if modo == "attacco_ia":
+		# l'IA francese attacca: si aspetta il primo pannello di battaglia e il suo esito
+		main.velocita = 20.0
+		var t0 := Time.get_ticks_msec()
+		while not main.batt_aperta and Time.get_ticks_msec() - t0 < 120000:
+			await process_frame
+		await create_timer(4.5).timeout
+		await shot("attacco_ia")
+		quit(); return
 	await shot("partita_" + sc)
 	if modo == "partita":
 		quit(); return
@@ -64,11 +73,27 @@ func _run():
 				await shot("combattimento")
 				var d: Dictionary = {"a": "attacco", "dif": main.sel_dif.duplicate(), "att": main.sel_att.keys()}
 				await main._invia(d)
-				await shot("rapporto")
+				await create_timer(0.15).timeout
+				root.get_viewport().get_texture().get_image().save_png("/tmp/shot_battaglia_frecce.png")
+				await create_timer(1.6).timeout
+				root.get_viewport().get_texture().get_image().save_png("/tmp/shot_battaglia_riga.png")
+				main._finale_battaglia()
+				await shot("battaglia_esito")
+				var rq: Dictionary = main.m.richiesta()
+				if rq.get("k", "") == "avanza":
+					var c: Array = rq["cand"][0]
+					main._clic(main.m.s["unita"][c[0]]["h"])
+					if main.sel_avanza != "":
+						main._clic(c[1])
+					await shot("avanzata")
+					print("AVANZATA ", main.m.s["unita"][c[0]]["h"] == c[1], " richiesta ora ", main.m.richiesta().get("k", ""), " pannello aperto ", main.batt_aperta)
 				quit(); return
 		if main.popup_aperto:
 			main._chiudi_popup()
 			main.coda_rapporti.clear()
+		if main.batt_aperta:
+			main.coda_rapporti.clear()
+			main._chiudi_battaglia(true)
 		if r.is_empty() or main._chi(int(r["lato"])) != "io":
 			continue
 		var d: Dictionary = main.ia[int(r["lato"])].decidi(r)

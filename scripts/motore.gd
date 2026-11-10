@@ -1110,6 +1110,11 @@ func _attacco(d: Dictionary) -> bool:
 		rep["att"].append(id)
 	for id in v["difensori"]:
 		rep["dif"].append(id)
+	# posizioni prima del combattimento (per disegnare frecce e pedine nell'animazione)
+	var pos := {}
+	for id in v["tutti"] + v["difensori"]:
+		pos[id] = s["unita"][id]["h"]
+	rep["pos"] = pos
 	var hex_att := {}
 	for id in v["adiac"]:
 		hex_att[s["unita"][id]["h"]] = true

@@ -47,6 +47,9 @@ func _run():
 		if main.popup_aperto:
 			main._chiudi_popup()
 			main.coda_rapporti.clear()
+		if main.batt_aperta:
+			main.coda_rapporti.clear()
+			main._chiudi_battaglia(true)
 		var r: Dictionary = main.m.richiesta()
 		if not r.is_empty() and main._chi(int(r["lato"])) == "io" and not main.invio_in_corso:
 			await main._invia(main.ia[int(r["lato"])].decidi(r))

@@ -60,6 +60,21 @@ var ultimo_salvataggio := 0.0
 var popup: Control
 var popup_aperto := false
 var coda_rapporti: Array = []
+# battaglia mostrata nel pannello in basso (tabella animata)
+var batt_pannello: PanelContainer
+var batt_rep: Dictionary = {}
+var batt_aperta := false
+var batt_pre := false         # pedine ancora nelle posizioni di prima del combattimento
+var batt_gen := 0             # cambia quando l'animazione va interrotta
+var batt_celle: Array = []    # [riga][colonna]
+var batt_righe: Array = []    # intestazioni delle righe (dado)
+var batt_colonne: Array = []  # intestazioni delle colonne (rapporto)
+var batt_dado: Dado
+var batt_lbl_ris: Label
+var batt_lbl_dett: Label
+var batt_bottoni: HBoxContainer
+var sel_avanza := ""
+var salta_fase := ""          # turno|lato: combattimenti dell'IA mostrati solo nel registro
 var carattere_ia := 1
 
 # selezione
@@ -227,6 +242,9 @@ func pulisci() -> void:
 	popup = null
 	popup_aperto = false
 	coda_rapporti.clear()
+	batt_aperta = false
+	batt_rep = {}
+	batt_pannello = null
 
 # =============================================================================================
 # Mondo 3D
@@ -387,12 +405,18 @@ func _aggiorna_pezzi() -> void:
 	if m == null:
 		return
 	var esagoni := {}
+	var forzati: Dictionary = batt_rep.get("pos", {}) if (batt_aperta and batt_pre) else {}
 	for id in m.s["unita"]:
 		var u: Dictionary = m.s["unita"][id]
-		if u["st"] == "mappa":
-			if not esagoni.has(u["h"]):
-				esagoni[u["h"]] = []
-			esagoni[u["h"]].append(id)
+		var hu := ""
+		if forzati.has(id):
+			hu = forzati[id]
+		elif u["st"] == "mappa":
+			hu = u["h"]
+		if hu != "":
+			if not esagoni.has(hu):
+				esagoni[hu] = []
+			esagoni[hu].append(id)
 	for id in m.s["capi"]:
 		var c: Dictionary = m.s["capi"][id]
 		if c["st"] == "mappa" and c["h"] != "":
@@ -473,29 +497,88 @@ func _anello(colore: Color, r := 0.44) -> Node3D:
 		n.add_child(seg)
 	return n
 
-func _freccia(da: String, a: String, colore: Color) -> Node3D:
-	var p0 := _v3(da, 0.05)
-	var p1 := _v3(a, 0.05)
-	var n := Node3D.new()
-	var dir := (p1 - p0)
+## Freccia piatta dall'esagono da all'esagono a, disegnata sopra le pedine (con un bordo scuro)
+func _freccia(da: String, a: String, colore: Color, tratteggiata := false) -> Node3D:
+	var p0 := _v3(da)
+	var p1 := _v3(a)
+	var dir := p1 - p0
 	var lung := dir.length()
-	var corpo := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = Vector3(lung * 0.55, 0.02, 0.08)
-	corpo.mesh = bm
-	corpo.material_override = _mat_colore(colore, false, true)
-	n.add_child(corpo)
-	var punta := MeshInstance3D.new()
-	var pm := PrismMesh.new()
-	pm.size = Vector3(0.2, 0.18, 0.02)
-	punta.mesh = pm
-	punta.material_override = _mat_colore(colore, false, true)
-	punta.rotation_degrees = Vector3(-90, 0, -90)
-	punta.position = Vector3(lung * 0.32, 0, 0)
-	n.add_child(punta)
-	n.position = (p0 + p1) / 2 + Vector3(0, 0.3, 0)
+	var n := Node3D.new()
+	if lung < 0.01:
+		return n
+	n.position = p0 + Vector3(0, 0.2, 0)
 	n.rotation.y = -atan2(dir.z, dir.x)
+	var ini := 0.16
+	var fin := lung - 0.14
+	n.add_child(_mesh_freccia(ini - 0.02, fin + 0.035, 0.26, 0.085, 0.2, colore.darkened(0.65), tratteggiata, 10))
+	n.add_child(_mesh_freccia(ini, fin, 0.22, 0.055, 0.155, colore, tratteggiata, 11))
 	return n
+
+func _mesh_freccia(ini: float, fin: float, punta: float, mezza: float, mezza_punta: float, colore: Color, tratt: bool, prio: int) -> MeshInstance3D:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var corpo_fin := fin - punta
+	var tratti := []
+	if tratt:
+		var x := ini
+		while x < corpo_fin:
+			tratti.append([x, minf(x + 0.12, corpo_fin)])
+			x += 0.2
+	else:
+		tratti.append([ini, corpo_fin])
+	for tr in tratti:
+		var x0: float = tr[0]
+		var x1: float = tr[1]
+		st.add_vertex(Vector3(x0, 0, -mezza))
+		st.add_vertex(Vector3(x1, 0, -mezza))
+		st.add_vertex(Vector3(x1, 0, mezza))
+		st.add_vertex(Vector3(x0, 0, -mezza))
+		st.add_vertex(Vector3(x1, 0, mezza))
+		st.add_vertex(Vector3(x0, 0, mezza))
+	st.add_vertex(Vector3(corpo_fin, 0, -mezza_punta))
+	st.add_vertex(Vector3(fin, 0, 0))
+	st.add_vertex(Vector3(corpo_fin, 0, mezza_punta))
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	var k := "freccia|%s|%d" % [colore.to_html(), prio]
+	if not cache_mat.has(k):
+		var mt := StandardMaterial3D.new()
+		mt.albedo_color = colore
+		mt.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mt.cull_mode = BaseMaterial3D.CULL_DISABLED
+		mt.no_depth_test = true
+		mt.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mt.render_priority = prio
+		cache_mat[k] = mt
+	mi.material_override = cache_mat[k]
+	return mi
+
+## Frecce di un attacco: dagli esagoni degli attaccanti a quello difeso (tratteggiate per il bombardamento)
+func _frecce_attacco(att: Array, dif: Array, pos: Dictionary, colore: Color) -> void:
+	var fatte := {}
+	for id in att:
+		var h: String = pos.get(id, m.s["unita"][id]["h"])
+		if h == "":
+			continue
+		var bersaglio := ""
+		var bomb := true
+		for d in dif:
+			if Mappa.adiacenti(h, d):
+				bersaglio = d
+				bomb = false
+				break
+		if bersaglio == "":
+			var bd := 99
+			for d in dif:
+				var dd := Mappa.distanza(h, d)
+				if dd < bd:
+					bd = dd
+					bersaglio = d
+		var k := h + ">" + bersaglio
+		if bersaglio == "" or fatte.has(k):
+			continue
+		fatte[k] = true
+		nodo_evid.add_child(_freccia(h, bersaglio, Color(0.95, 0.68, 0.12) if bomb else colore, bomb))
 
 func _aggiorna_evidenze() -> void:
 	for c in nodo_evid.get_children():
@@ -532,21 +615,37 @@ func _aggiorna_evidenze() -> void:
 			var a := _anello(Color(0.2, 0.35, 0.95))
 			a.position = _v3(hh)
 			nodo_evid.add_child(a)
-			if not sel_dif.is_empty():
-				nodo_evid.add_child(_freccia(hh, sel_dif[0], Color(0.85, 0.1, 0.05)))
+		if not sel_dif.is_empty():
+			_frecce_attacco(sel_att.keys(), sel_dif, {}, Color(0.86, 0.12, 0.06))
 	var rq := m.richiesta()
-	if rq.get("k", "") == "avanza":
+	if rq.get("k", "") == "avanza" and not batt_pre:
 		for c in rq["cand"]:
 			var e := _esagono_mesh(Color(0.2, 0.5, 0.95, 0.4))
 			e.position = _v3(c[1], 0.008)
 			nodo_evid.add_child(e)
+			if _fase_mia("avanza"):
+				# le unità che possono avanzare: anello d'oro, più marcato per quella scelta
+				var hu: String = m.s["unita"][c[0]]["h"]
+				var an := _anello(Color(1, 0.85, 0.2) if c[0] != sel_avanza else Color(1, 1, 1), 0.46)
+				an.position = _v3(hu)
+				nodo_evid.add_child(an)
+				var an2 := _anello(C_ORO.darkened(0.2), 0.38)
+				an2.position = _v3(hu)
+				nodo_evid.add_child(an2)
+				if c[0] == sel_avanza:
+					nodo_evid.add_child(_freccia(hu, c[1], Color(0.2, 0.5, 0.95)))
+	if batt_aperta and not batt_rep.is_empty():
+		var pos: Dictionary = batt_rep.get("pos", {})
+		for h in batt_rep["dif_hex"]:
+			var e := _esagono_mesh(Color(0.9, 0.08, 0.05, 0.42))
+			e.position = _v3(h, 0.008)
+			nodo_evid.add_child(e)
+		if batt_pre:
+			_frecce_attacco(batt_rep["att"], batt_rep["dif_hex"], pos, Color(0.86, 0.12, 0.06))
 	if hover != "" and hover != sel_hex:
 		var a := _anello(Color(1, 1, 1, 1), 0.42)
 		a.position = _v3(hover)
 		nodo_evid.add_child(a)
-	var ub: Dictionary = m.s.get("ultima_battaglia", {})
-	if not ub.is_empty() and int(ub.get("azione", -1)) == int(m.s["azioni"]) - 1:
-		pass
 
 # ---------- input sulla mappa (mouse e tocco: un dito sposta, due dita pizzicano e ruotano)
 
@@ -1500,12 +1599,14 @@ func _aggiorna_pannello() -> void:
 			lbl_stato.text = "%s: combattimento. Tocca un esagono nemico (in arancio quelli da attaccare per forza), scegli chi attacca e premi «Attacca»." % Dati.LATI[lato]
 			_pannello_combattimento(lato)
 		"avanza":
-			lbl_stato.text = "Il nemico ha lasciato l'esagono: un'unità vincitrice può avanzare."
+			lbl_stato.text = "Il nemico ha lasciato l'esagono: un'unità vincitrice può avanzare. Tocca sulla mappa un'unità con l'anello d'oro; l'esagono libero è in blu."
+			if not batt_aperta:
+				box_azioni.add_child(bottone("Nessuna avanzata", func(): _invia({"a": "avanza", "u": ""}), 18))
+			var viste := {}
 			for c in r["cand"]:
-				var id: String = c[0]
-				var h: String = c[1]
-				box_azioni.add_child(bottone("%s avanza in %s" % [m.nome(id), Mappa.sigla(h)], func(): _invia({"a": "avanza", "u": id, "h": h}), 18))
-			box_azioni.add_child(bottone("Nessuna avanzata", func(): _invia({"a": "avanza", "u": ""}), 18))
+				if not viste.has(c[0]):
+					viste[c[0]] = true
+					pannello_info.add_child(_riga_unita(c[0]))
 			_info_esagono(sel_hex)
 
 func _info_esagono(h: String) -> void:
@@ -1680,6 +1781,11 @@ func _clic(h: String) -> void:
 	if _fase_mia("combattimento") and h != "":
 		_clic_combattimento(h)
 		return
+	if _fase_mia("avanza") and h != "":
+		if batt_pre:
+			_finale_battaglia()
+		_clic_avanza(h)
+		return
 	sel_hex = h
 	_annulla_selezione()
 	if _fase_mia("movimento") and h != "":
@@ -1816,51 +1922,321 @@ func _pannello_combattimento(lato: int) -> void:
 
 # ---------- rapporti di battaglia
 
-func _vista_rapporto(rep: Dictionary) -> Control:
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 4)
-	var la := int(rep["lato"])
-	v.add_child(etichetta("%s attaccano a %s" % [Dati.LATI[la], ", ".join(rep["dif_hex"].map(func(h): return Mappa.sigla(h)))], F_GRASSETTO, 21, C_BLU))
-	var hb := HBoxContainer.new()
-	hb.add_theme_constant_override("separation", 6)
-	for id in rep["att"]:
-		hb.add_child(immagine(img_pedina(id), 54, 54))
-	hb.add_child(riga_lbl("  contro  ", F_CORSIVO, 19))
-	for id in rep["dif"]:
-		hb.add_child(immagine(img_pedina(id), 54, 54))
-	v.add_child(hb)
-	var r2 := HBoxContainer.new()
-	r2.add_theme_constant_override("separation", 10)
-	r2.add_child(riga_lbl("%s contro %s, colonna %s, dado " % [_num(rep["fa"]), _num(rep["fd"]), rep["col"]], F_TESTO, 19))
-	r2.add_child(Dado.new(int(rep["dado"]), false, 36.0))
-	r2.add_child(riga_lbl("  %s" % Dati.NOMI_RISULTATO.get(rep["ris"], rep["ris"]), F_GRASSETTO, 21, C_ROSSO))
-	v.add_child(r2)
-	if not rep["elim"].is_empty():
-		v.add_child(etichetta("Eliminati: " + ", ".join(rep["elim"].map(func(x): return m.nome(x))), F_TESTO, 17))
-	if not rep["rit"].is_empty():
-		v.add_child(etichetta("Si ritirano: " + ", ".join(rep["rit"].map(func(x): return m.nome(x))), F_TESTO, 17))
-	return v
+# ---------- battaglia: frecce sulla mappa e tabella che sale dal basso
 
-func _mostra_rapporti() -> void:
-	if coda_rapporti.is_empty() or popup_aperto:
+const ALTEZZA_BATT := 404.0
+
+func _prossima_battaglia() -> void:
+	if coda_rapporti.is_empty() or batt_aperta:
 		return
-	var reps := coda_rapporti.duplicate()
-	coda_rapporti.clear()
-	var v := _apri_popup("Combattimenti", 900)
-	var sc := ScrollContainer.new()
-	sc.custom_minimum_size = Vector2(860, mini(560, 175 * reps.size()))
-	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	v.add_child(sc)
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 12)
-	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	sc.add_child(col)
-	for rep in reps:
-		col.add_child(_vista_rapporto(rep))
-		col.add_child(HSeparator.new())
-	v.add_child(bottone("Avanti", func():
-		_chiudi_popup()
-		_aggiorna_tutto(), 22))
+	batt_rep = coda_rapporti.pop_front()
+	batt_aperta = true
+	batt_pre = true
+	sel_avanza = ""
+	batt_gen += 1
+	var gen := batt_gen
+	_costruisci_pannello_battaglia()
+	_inquadra_battaglia()
+	_aggiorna_pezzi()
+	_aggiorna_evidenze()
+	_aggiorna_pannello()
+	await _anima_battaglia(gen)
+
+func _inquadra_battaglia() -> void:
+	# il combattimento va nella metà alta dello schermo, sopra la tabella
+	var c := Vector3.ZERO
+	var n := 0
+	for h in batt_rep["dif_hex"]:
+		c += _v3(h)
+		n += 1
+	if n == 0:
+		return
+	c /= n
+	var d := minf(distanza, 11.0)
+	var meta := c + Vector3(sin(yaw), 0, cos(yaw)) * d * 0.28
+	var tw := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	var da := bersaglio_cam
+	var dd := distanza
+	tw.tween_method(func(x: float):
+		bersaglio_cam = da.lerp(meta, x)
+		distanza = lerpf(dd, d, x)
+		_aggiorna_camera(), 0.0, 1.0, 0.45)
+
+func _stile_cella(tipo: String, chiara := false) -> StyleBoxFlat:
+	var bg: Color
+	match tipo:
+		"intest":
+			bg = C_BLU
+		"intest_on":
+			bg = C_ORO
+		"colonna":
+			bg = Color(0.99, 0.86, 0.45)
+		"riga":
+			bg = Color(0.7, 0.8, 0.98)
+		"incrocio":
+			bg = C_ROSSO
+		_:
+			bg = Color(0.97, 0.93, 0.83) if chiara else Color(0.99, 0.97, 0.9)
+	var sb := stile(bg, C_BLU_SCURO if tipo == "incrocio" else Color(0, 0, 0, 0), 3 if tipo == "incrocio" else 0, 3)
+	sb.content_margin_left = 4
+	sb.content_margin_right = 4
+	sb.content_margin_top = 3
+	sb.content_margin_bottom = 3
+	return sb
+
+func _cella_batt(testo: String, tipo: String, chiara := false) -> PanelContainer:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", _stile_cella(tipo, chiara))
+	p.custom_minimum_size = Vector2(66, 34)
+	p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var l := riga_lbl(testo, F_GRASSETTO, 19, Color(1, 0.96, 0.86) if tipo == "intest" else C_INCHIOSTRO)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	p.add_child(l)
+	return p
+
+func _imposta_cella(p: PanelContainer, tipo: String, chiara := false) -> void:
+	p.add_theme_stylebox_override("panel", _stile_cella(tipo, chiara))
+	var l: Label = p.get_child(0)
+	var col := C_INCHIOSTRO
+	if tipo == "intest":
+		col = Color(1, 0.96, 0.86)
+	elif tipo == "intest_on":
+		col = C_BLU_SCURO
+	elif tipo == "incrocio":
+		col = Color(1, 0.97, 0.9)
+	elif l.text in ["DE", "EX"]:
+		col = C_ROSSO
+	l.add_theme_color_override("font_color", col)
+
+func _costruisci_pannello_battaglia() -> void:
+	if batt_pannello != null and is_instance_valid(batt_pannello):
+		batt_pannello.queue_free()
+	var rep := batt_rep
+	var pn := PanelContainer.new()
+	var sb := stile(Color(0.96, 0.92, 0.83, 0.98), C_BLU, 3, 6)
+	sb.content_margin_left = 16
+	sb.content_margin_right = 16
+	sb.content_margin_top = 10
+	sb.content_margin_bottom = 10
+	pn.add_theme_stylebox_override("panel", sb)
+	pn.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	pn.offset_left = 490
+	pn.offset_right = -12
+	pn.offset_top = 20
+	pn.offset_bottom = ALTEZZA_BATT + 20
+	schermo.add_child(pn)
+	batt_pannello = pn
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	pn.add_child(v)
+	# intestazione: chi attacca dove, forze e colonna
+	var la := int(rep["lato"])
+	var r1 := HBoxContainer.new()
+	r1.add_theme_constant_override("separation", 14)
+	v.add_child(r1)
+	var tit := riga_lbl("%s attaccano %s" % [Dati.LATI[la], ", ".join(rep["dif_hex"].map(func(h): return Mappa.sigla(h)))], F_TITOLO, 25, C_BLU)
+	tit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tit.clip_text = true
+	r1.add_child(tit)
+	r1.add_child(riga_lbl("%s contro %s  ·  colonna %s" % [_num(rep["fa"]), _num(rep["fd"]), rep["col"]], F_GRASSETTO, 20, C_INCHIOSTRO))
+	batt_dado = Dado.new(1, false, 40.0)
+	r1.add_child(batt_dado)
+	# la tabella
+	var g := GridContainer.new()
+	g.columns = 11
+	g.add_theme_constant_override("h_separation", 3)
+	g.add_theme_constant_override("v_separation", 3)
+	v.add_child(g)
+	batt_celle = []
+	batt_righe = []
+	batt_colonne = []
+	g.add_child(_cella_batt("Dado", "intest"))
+	for c in Dati.COLONNE:
+		var hc := _cella_batt(c, "intest")
+		batt_colonne.append(hc)
+		g.add_child(hc)
+	for r in 6:
+		var hr := _cella_batt(str(r + 1), "intest")
+		batt_righe.append(hr)
+		g.add_child(hr)
+		var riga := []
+		for c in 10:
+			var ce := _cella_batt(Dati.TRC[r][c], "", r % 2 == 0)
+			_imposta_cella(ce, "", r % 2 == 0)
+			riga.append(ce)
+			g.add_child(ce)
+		batt_celle.append(riga)
+	# risultato e dettagli
+	var r3 := HBoxContainer.new()
+	r3.add_theme_constant_override("separation", 14)
+	v.add_child(r3)
+	var vr := VBoxContainer.new()
+	vr.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	r3.add_child(vr)
+	batt_lbl_ris = riga_lbl(" ", F_TITOLO, 26, C_ROSSO)
+	vr.add_child(batt_lbl_ris)
+	batt_lbl_dett = etichetta(" ", F_TESTO, 17)
+	vr.add_child(batt_lbl_dett)
+	batt_bottoni = HBoxContainer.new()
+	batt_bottoni.add_theme_constant_override("separation", 10)
+	r3.add_child(batt_bottoni)
+	batt_bottoni.add_child(bottone("Salta", func(): _finale_battaglia(), 17))
+	# entra dal basso
+	var tw := create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(pn, "offset_top", -ALTEZZA_BATT, 0.4)
+	tw.parallel().tween_property(pn, "offset_bottom", -8.0, 0.4)
+
+func _evidenzia_tabella(col: int, riga: int, incrocio := false) -> void:
+	for c in batt_colonne.size():
+		_imposta_cella(batt_colonne[c], "intest_on" if c == col else "intest")
+	for r in batt_righe.size():
+		_imposta_cella(batt_righe[r], "intest_on" if r == riga else "intest")
+	for r in 6:
+		for c in 10:
+			var tp := ""
+			if r == riga and c == col:
+				tp = "incrocio" if incrocio else "colonna"
+			elif c == col:
+				tp = "colonna"
+			elif r == riga:
+				tp = "riga"
+			_imposta_cella(batt_celle[r][c], tp, r % 2 == 0)
+
+func _attendi(s: float) -> void:
+	await get_tree().create_timer(s).timeout
+
+func _anima_battaglia(gen: int) -> void:
+	var col := maxi(0, Dati.COLONNE.find(batt_rep["col"]))
+	var dado := clampi(int(batt_rep["dado"]), 1, 6)
+	await _attendi(0.45)
+	# la colonna del rapporto di forze
+	for c in col + 1:
+		if gen != batt_gen:
+			return
+		_evidenzia_tabella(c, -1)
+		await _attendi(0.05)
+	await _attendi(0.35)
+	# la riga scorre sui valori del dado e rallenta fino a fermarsi su quello uscito
+	var passi := 12 + dado - 1
+	for k in passi + 1:
+		if gen != batt_gen:
+			return
+		var r := k % 6
+		_evidenzia_tabella(col, r)
+		batt_dado.valore = r + 1
+		batt_dado.queue_redraw()
+		await _attendi(0.04 + 0.24 * pow(float(k) / float(passi), 2.4))
+	if gen != batt_gen:
+		return
+	_finale_battaglia()
+
+## Mostra il risultato all'incrocio, aggiorna la mappa e offre l'avanzata o il seguito
+func _finale_battaglia() -> void:
+	if not batt_aperta or batt_pannello == null or not is_instance_valid(batt_pannello):
+		return
+	batt_gen += 1
+	var rep := batt_rep
+	var col := maxi(0, Dati.COLONNE.find(rep["col"]))
+	var dado := clampi(int(rep["dado"]), 1, 6)
+	_evidenzia_tabella(col, dado - 1, true)
+	batt_dado.valore = dado
+	batt_dado.queue_redraw()
+	var cella: PanelContainer = batt_celle[dado - 1][col]
+	cella.pivot_offset = cella.size / 2
+	var tw := create_tween()
+	tw.tween_property(cella, "scale", Vector2(1.25, 1.25), 0.12)
+	tw.tween_property(cella, "scale", Vector2.ONE, 0.18)
+	var ris: String = rep["ris"]
+	var testo: String = Dati.NOMI_RISULTATO.get(ris, ris)
+	if str(rep.get("orig", ris)) != ris:
+		testo = "%s: %s" % [Dati.NOMI_RISULTATO.get(rep["orig"], rep["orig"]), testo]
+	batt_lbl_ris.text = testo.substr(0, 1).to_upper() + testo.substr(1)
+	var det := []
+	if not rep["elim"].is_empty():
+		det.append("Eliminati: " + ", ".join(rep["elim"].map(func(x): return m.nome(x))))
+	if not rep["rit"].is_empty():
+		det.append("Si ritirano: " + ", ".join(rep["rit"].map(func(x): return m.nome(x))))
+	batt_lbl_dett.text = ".  ".join(det) + ("." if not det.is_empty() else "")
+	# ora la mappa mostra l'esito
+	batt_pre = false
+	_aggiorna_pezzi()
+	_aggiorna_evidenze()
+	_bottoni_battaglia()
+
+func _bottoni_battaglia() -> void:
+	for c in batt_bottoni.get_children():
+		c.queue_free()
+	if coda_rapporti.is_empty() and _fase_mia("avanza"):
+		batt_lbl_dett.text += ("  " if batt_lbl_dett.text.strip_edges() != "" else "") + "Avanzata: tocca un'unità illuminata sulla mappa per farla avanzare."
+		batt_bottoni.add_child(bottone("Nessuna avanzata", func():
+			_chiudi_battaglia()
+			_invia({"a": "avanza", "u": ""}), 19))
+		_aggiorna_pannello()
+		return
+	var la := int(batt_rep["lato"])
+	if _chi(la) != "io":
+		batt_bottoni.add_child(bottone("Salta i prossimi in questa fase", func():
+			salta_fase = "%d|%d" % [int(m.s["turno"]), la]
+			coda_rapporti.clear()
+			_chiudi_battaglia(), 17))
+	elif not coda_rapporti.is_empty():
+		batt_bottoni.add_child(bottone("Salta gli altri (%d)" % coda_rapporti.size(), func():
+			coda_rapporti.clear()
+			_chiudi_battaglia(), 17))
+	batt_bottoni.add_child(bottone("Avanti", func(): _chiudi_battaglia(), 21))
+
+func _chiudi_battaglia(subito := false) -> void:
+	batt_gen += 1
+	batt_aperta = false
+	batt_pre = false
+	batt_rep = {}
+	sel_avanza = ""
+	var pn := batt_pannello
+	batt_pannello = null
+	if pn != null and is_instance_valid(pn):
+		if subito:
+			pn.queue_free()
+		else:
+			var tw := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+			tw.tween_property(pn, "offset_top", 20.0, 0.25)
+			tw.parallel().tween_property(pn, "offset_bottom", ALTEZZA_BATT + 20.0, 0.25)
+			tw.tween_callback(pn.queue_free)
+	if m != null:
+		_aggiorna_tutto()
+
+## Avanzata dopo il combattimento con un tocco sulla mappa: prima l'unità, poi (se serve) la destinazione
+func _clic_avanza(h: String) -> void:
+	var rq := m.richiesta()
+	var dest := {}
+	for c in rq["cand"]:
+		if not dest.has(c[0]):
+			dest[c[0]] = []
+		dest[c[0]].append(c[1])
+	if sel_avanza != "" and dest.get(sel_avanza, []).has(h):
+		_avanza_con(sel_avanza, h)
+		return
+	var qui := []
+	for id in dest:
+		if m.s["unita"][id]["h"] == h:
+			qui.append(id)
+	if qui.is_empty():
+		return
+	var id: String = qui[0]
+	if qui.has(sel_avanza) and qui.size() > 1:
+		id = qui[(qui.find(sel_avanza) + 1) % qui.size()]
+	if dest[id].size() == 1 and qui.size() == 1:
+		_avanza_con(id, dest[id][0])
+		return
+	sel_avanza = id
+	_notifica("%s: tocca l'esagono in blu dove avanzare%s." % [m.nome(id), " (tocca di nuovo per l'altra unità)" if qui.size() > 1 else ""])
+	_aggiorna_evidenze()
+
+func _avanza_con(id: String, h: String) -> void:
+	sel_avanza = ""
+	if batt_aperta:
+		_chiudi_battaglia()
+	_invia({"a": "avanza", "u": id, "h": h})
 
 func _mostra_fine() -> void:
 	var e: Dictionary = m.s["esito"]
@@ -1879,10 +2255,10 @@ func _mostra_fine() -> void:
 func _process(delta: float) -> void:
 	if not in_partita or m == null or m.finita():
 		return
-	if not coda_rapporti.is_empty() and not popup_aperto and _ci_sono_umani():
-		_mostra_rapporti()
+	if not coda_rapporti.is_empty() and not popup_aperto and not batt_aperta and _ci_sono_umani():
+		_prossima_battaglia()
 		return
-	if popup_aperto:
+	if popup_aperto or batt_aperta:
 		return
 	var r := m.richiesta()
 	if r.is_empty():
@@ -1949,7 +2325,8 @@ func _applica(d: Dictionary) -> void:
 	for e in m.eventi:
 		match e["k"]:
 			"battaglia":
-				if _ci_sono_umani():
+				var la := int(e["rep"]["lato"])
+				if _ci_sono_umani() and not (_chi(la) != "io" and salta_fase == "%d|%d" % [int(m.s["turno"]), la]):
 					coda_rapporti.append(e["rep"])
 			"annuncio":
 				_notifica(e["t"])

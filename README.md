@@ -5,7 +5,7 @@ esportazione web: le quattro battaglie — **Ligny**, **Quatre Bras**, **Wavre**
 **campagna** che le unisce su un'unica mappa. Mappa 3D con le mappe e le pedine originali del modulo di Tabletop
 Simulator, IA per giocare da soli, partita online con un amico e salvataggi su Firebase.
 
-Si gioca qui: https://tannoiser2.github.io/Napoleon-last-Battles/ (e nella ludoteca: https://tannoiser2.github.io).
+Si gioca qui: https://tannoiser2.github.io/Napoleon-Last-Battles/ (e nella ludoteca: https://tannoiser2.github.io).
 
 ## Cosa c'è
 
@@ -18,6 +18,11 @@ Si gioca qui: https://tannoiser2.github.io/Napoleon-last-Battles/ (e nella ludot
   campagna dall'elenco `NLB_Campaign_Setup.pdf` e dalle tracce dei turni stampate sulle mappe.
 - **Plance**: le plance dei corpi (eliminati in attesa, riorganizzabili, persi per sempre) con le pedine sopra, e la
   Tabella dei risultati e del terreno.
+- **Combattimento a schermo**: gli attacchi sono frecce dagli esagoni attaccanti a quello difeso (tratteggiate in oro
+  per il bombardamento). Quando si risolve un attacco la Tabella sale dal basso, si illumina la colonna del rapporto
+  di forze, una riga scorre sui valori del dado e si ferma su quello uscito, e all'incrocio compare il risultato.
+  Per l'avanzata si tocca sulla mappa un'unità con l'anello d'oro (oppure «Nessuna avanzata»); i combattimenti
+  dell'IA si possono saltare per il resto della fase.
 - **Regole** (`scripts/motore.gd`, regolamento rivisto): movimento con strade e sentieri, zone di controllo rigide,
   impilamento, rinforzi in colonna, combattimento obbligatorio anche su più esagoni, TRC con l'errata (4-1 con 5 = DR),
   ritirate e spostamenti, avanzata, artiglieria con bombardamento e linea di tiro, fattorie fortificate, notte e
