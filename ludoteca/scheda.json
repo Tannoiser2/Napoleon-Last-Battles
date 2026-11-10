@@ -1,0 +1,13 @@
+{
+  "titolo": "Napoleon's Last Battles",
+  "sottotitolo": "la campagna di Waterloo",
+  "descrizione": "Il quadrigioco SPI del 1976 sui Cento Giorni: Ligny, Quatre Bras, Wavre e La Belle Alliance, giocabili da soli o unite nella campagna di tre giorni con comando dei capi, riorganizzazione e demoralizzazione dei corpi. Mappa 3D con le quattro mappe e le pedine originali, IA per il solitario, online con un amico e salvataggi su Firebase.",
+  "online": true,
+  "sezione": "conversione",
+  "ordine": 206,
+  "generi": [
+    "Storici",
+    "Wargame"
+  ],
+  "bgg": 4230
+}
