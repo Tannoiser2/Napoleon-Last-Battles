@@ -14,10 +14,10 @@ Si gioca qui: https://tannoiser2.github.io/Napoleon-Last-Battles/ (e nella ludot
   sono stati riconosciuti dai colori della mappa (`tools/estrazione/`): la griglia è stata agganciata leggendo con
   l'OCR i numeri degli esagoni. Ogni esagono conserva la sigla originale (es. B0617 = Hougoumont).
 - **Mappa ridisegnata in 3D** (predefinita; dal Menu si torna alle scansioni originali): le quattro mappe
-  restyled unite in `assets/mappa/mappa_nuova.webp` da `tools/estrazione/costruisci_mappa_nuova.py`. La loro griglia è
-  stata ricavata dalle linee degli esagoni e confrontata esagono per esagono con quella delle scansioni (scarto
-  medio 2-3 px su un passo di 35, numerazione identica). Ogni esagono è una tessera con gli spigoli arrotondati;
-  creste, paesi e fattorie sono rialzati e le pedine si appoggiano alla quota giusta.
+  restyled in alta risoluzione unite in quattro tasselli `assets/mappa/mappa_nuova_*.webp` da
+  `tools/estrazione/costruisci_mappa_nuova.py`. La loro griglia è stata ricavata dalle linee degli esagoni e
+  confrontata esagono per esagono con quella delle scansioni (numerazione identica, scarto medio circa il 10% del
+  passo). Ogni esagono è un prisma; creste, paesi e fattorie sono rialzati e le pedine si appoggiano alla quota.
   Il confronto ha anche scoperto errori nei terreni estratti dalle scansioni: titoli, rose dei venti, nomi e
   simboli di schieramento stampati in blu erano stati letti come paesi, laghi o corsi d'acqua (59 esagoni e 66
   lati, corretti con `tools/estrazione/correggi_terreni.py` e `correzioni_terreni.json`; il lago Materne di Quatre
@@ -30,8 +30,10 @@ Si gioca qui: https://tannoiser2.github.io/Napoleon-Last-Battles/ (e nella ludot
 - **Combattimento a schermo**: gli attacchi sono frecce dagli esagoni attaccanti a quello difeso (tratteggiate in oro
   per il bombardamento). Quando si risolve un attacco la Tabella sale dal basso, si illumina la colonna del rapporto
   di forze, una riga scorre sui valori del dado e si ferma su quello uscito, e all'incrocio compare il risultato.
-  Per l'avanzata si tocca sulla mappa un'unità con l'anello d'oro (oppure «Nessuna avanzata»); i combattimenti
-  dell'IA si possono saltare per il resto della fase.
+  Il tiro dell'artiglieria è una parabola in 3D; dopo l'esito una freccia chiara mostra dove si è ritirata ogni
+  unità e le eliminate saltano via in un lampo di fumo. Per l'avanzata si tocca un'unità con l'anello d'oro, oppure
+  l'esagono vuoto per restare; il tasto «Avanti» c'è solo quando non c'è niente da scegliere. I combattimenti
+  dell'IA si possono saltare per il resto della fase. Le pedine scorrono da un esagono all'altro lungo il percorso.
 - **Regole** (`scripts/motore.gd`, regolamento rivisto): movimento con strade e sentieri, zone di controllo rigide,
   impilamento, rinforzi in colonna, combattimento obbligatorio anche su più esagoni, TRC con l'errata (4-1 con 5 = DR),
   ritirate e spostamenti, avanzata, artiglieria con bombardamento e linea di tiro, fattorie fortificate, notte e

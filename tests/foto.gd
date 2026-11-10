@@ -45,6 +45,34 @@ func _run():
 				break
 		await shot("movimento")
 		quit(); return
+	if modo == "effetti":
+		# parabola dell'artiglieria e unità eliminata (scatto a metà effetto)
+		var art := ""
+		var bers := ""
+		for id in main.m.s["unita"]:
+			if main.m.lato_di(id) == 0 and main.m.tipo(id) in ["A", "HA"] and main.m.s["unita"][id]["st"] == "mappa":
+				art = id
+				break
+		var ha: String = main.m.s["unita"][art]["h"]
+		for id in main.m.s["unita"]:
+			if main.m.lato_di(id) == 1 and main.m.s["unita"][id]["st"] == "mappa" and Mappa.distanza(ha, main.m.s["unita"][id]["h"]) <= 4:
+				bers = main.m.s["unita"][id]["h"]
+				break
+		if bers == "":
+			bers = Mappa.vicini(Mappa.vicini(ha)[0])[0]
+		main._centra_su(bers, 6.0)
+		main.nodo_evid.add_child(main._parabola(ha, bers, Color(0.98, 0.62, 0.1)))
+		var vittima: String = main.m.unita_in(bers, 1)[0] if not main.m.unita_in(bers, 1).is_empty() else ""
+		if vittima != "":
+			var n = main.nodi_pezzi[vittima]
+			main.nodi_pezzi.erase(vittima)
+			main._anima_eliminazione(n)
+		await create_timer(0.12).timeout
+		root.get_viewport().get_texture().get_image().save_png("/tmp/shot_effetti.png")
+		await create_timer(0.35).timeout
+		root.get_viewport().get_texture().get_image().save_png("/tmp/shot_effetti2.png")
+		print("shot effetti")
+		quit(); return
 	if modo == "plance":
 		main._plance_popup()
 		await shot("plance")

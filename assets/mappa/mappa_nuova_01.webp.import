@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d12thnsay1oc3"
-path="res://.godot/imported/mappa_nuova.webp-afd5571b7809a828d4ac32d2c106093b.ctex"
+uid="uid://djhcasnl18avl"
+path="res://.godot/imported/mappa_nuova_01.webp-7735e09cb5e84b163e470ad63b3f3426.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/mappa/mappa_nuova.webp"
-dest_files=["res://.godot/imported/mappa_nuova.webp-afd5571b7809a828d4ac32d2c106093b.ctex"]
+source_file="res://assets/mappa/mappa_nuova_01.webp"
+dest_files=["res://.godot/imported/mappa_nuova_01.webp-7735e09cb5e84b163e470ad63b3f3426.ctex"]
 
 [params]
 

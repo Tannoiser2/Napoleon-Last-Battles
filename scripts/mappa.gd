@@ -13,7 +13,7 @@ static var tasselli := [2147, 2905]
 static var _vic := {}
 static var quote := {}         # mappa ridisegnata: c cresta, e paese, f fattoria
 static var decorativi := []    # esagoni disegnati nelle mappe nuove ma fuori dal gioco
-static var tex_nuova := ""
+static var tasselli_nuova := []   # [{file, zona [x0,y0,x1,y1], tex [x0,y0,x1,y1]}] in pixel della mappa
 
 static func carica() -> void:
 	if not esagoni.is_empty():
@@ -30,7 +30,7 @@ static func carica() -> void:
 	if d.has("nuova"):
 		quote = d["nuova"]["quote"]
 		decorativi = d["nuova"]["decorativi"]
-		tex_nuova = "res://assets/mappa/" + str(d["nuova"]["tex"])
+		tasselli_nuova = d["nuova"]["tasselli"]
 	for k in esagoni:
 		var v := []
 		for n in _intorno(k):

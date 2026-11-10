@@ -44,6 +44,9 @@ var tocchi := {}
 var due_dita := false
 var cache_tex := {}
 var nodo_mappa: Node3D
+var nodo_stato: Node3D        # segnalini D / FC sopra le pile
+var nodi_pezzi := {}          # id -> nodo della pedina (resta lo stesso e si sposta animato)
+var percorsi := {}            # id -> esagoni attraversati dall'ultima mossa (per lo scorrimento)
 var mappa_nuova := true       # mappa ridisegnata in 3D; false = scansioni originali piatte
 const SALVA_OPZIONI := "user://opzioni_napoleonlb.json"
 var cache_mat := {}
@@ -313,7 +316,7 @@ func _carica_opzioni() -> void:
 		var d = JSON.parse_string(FileAccess.get_file_as_string(SALVA_OPZIONI))
 		if d is Dictionary:
 			mappa_nuova = bool(d.get("mappa_nuova", true))
-	if Mappa.tex_nuova == "":
+	if Mappa.tasselli_nuova.is_empty():
 		mappa_nuova = false
 
 func _salva_opzioni() -> void:
@@ -362,119 +365,100 @@ func quota(h: String) -> float:
 		return 0.0
 	return QUOTE.get(Mappa.quote.get(h, ""), QUOTA_BASE)
 
-## La mappa ridisegnata in 3D: una tessera per esagono con gli spigoli arrotondati; creste, paesi e
-## fattorie sono rialzati. La texture è unica e allineata alla griglia del gioco.
+## La mappa ridisegnata in 3D: un prisma esagonale per esagono; creste, paesi e fattorie sono rialzati.
+## La texture è divisa in quattro tasselli (con un margine): ogni esagono usa quello del suo centro.
 func _mappa_esagoni() -> MeshInstance3D:
 	var R := Mappa.DX * SC / 1.5
 	var hh := Mappa.DY * SC / 2.0
-	# contorno arrotondato: per ogni spigolo due punti sui lati e uno a metà curva
 	# gli spigoli di un esagono con il lato piatto in alto
-	var spig: Array[Vector2] = [Vector2(R, 0), Vector2(R / 2, hh), Vector2(-R / 2, hh), Vector2(-R, 0), Vector2(-R / 2, -hh), Vector2(R / 2, -hh)]
-	var anello: Array[Vector2] = []
-	var t := 0.2
-	for i in 6:
-		var v: Vector2 = spig[i]
-		var p: Vector2 = spig[(i + 5) % 6]
-		var n: Vector2 = spig[(i + 1) % 6]
-		var a := v + (p - v) * t
-		var b := v + (n - v) * t
-		anello.append(a)
-		anello.append(a * 0.25 + v * 0.5 + b * 0.25)
-		anello.append(b)
+	var anello: Array[Vector2] = [Vector2(R, 0), Vector2(R / 2, hh), Vector2(-R / 2, hh), Vector2(-R, 0), Vector2(-R / 2, -hh), Vector2(R / 2, -hh)]
 	var N := anello.size()
-	var esterni: Array[Vector2] = []
-	var interni: Array[Vector2] = []
-	var normali: Array[Vector3] = []
-	for q in anello:
-		esterni.append(q * 0.985)
-		interni.append(q * 0.93)
-		var o := Vector3(q.x, 0, q.y).normalized()
-		normali.append((o * 0.75 + Vector3.UP * 0.66).normalized())
-	var BEV := 0.022
-	var verts := PackedVector3Array()
-	var norms := PackedVector3Array()
-	var uvs := PackedVector2Array()
-	var cols := PackedColorArray()
-	var idx := PackedInt32Array()
-	var lista := []
+	var tas: Array = Mappa.tasselli_nuova
+	var gruppi := []
+	for _i in tas.size():
+		gruppi.append([])
+	var tutti := []
 	for k in Mappa.esagoni:
-		lista.append([k, true])
+		tutti.append([k, true])
 	for k in Mappa.decorativi:
-		lista.append([k, false])
-	var lx := Mappa.larg
-	var lz := Mappa.alt
-	for e in lista:
-		var k: String = e[0]
-		var gioco: bool = e[1]
-		var c2: Vector2 = Mappa.pos(k) if gioco else Mappa.pos_griglia(k)
-		var cx := c2.x * SC
-		var cz := c2.y * SC
-		var top: float = quota(k) if gioco else 0.012
-		var tinta := Color(1, 1, 1) if gioco else Color(0.55, 0.55, 0.52)
-		var fianco := Color(0.5, 0.45, 0.38) if gioco else Color(0.3, 0.3, 0.28)
-		var b0 := verts.size()
-		# centro e anello superiore
-		verts.append(Vector3(cx, top, cz))
-		norms.append(Vector3.UP)
-		uvs.append(Vector2(c2.x / lx, c2.y / lz))
-		cols.append(tinta)
-		for i in N:
-			var q: Vector2 = interni[i]
-			verts.append(Vector3(cx + q.x, top, cz + q.y))
-			norms.append(Vector3.UP)
-			uvs.append(Vector2((c2.x + q.x / SC) / lx, (c2.y + q.y / SC) / lz))
-			cols.append(tinta)
-		# anello del bordo arrotondato
-		for i in N:
-			var q: Vector2 = esterni[i]
-			verts.append(Vector3(cx + q.x, top - BEV, cz + q.y))
-			norms.append(normali[i])
-			uvs.append(Vector2((c2.x + q.x / SC) / lx, (c2.y + q.y / SC) / lz))
-			cols.append(tinta.darkened(0.12))
-		# fianco: dal bordo fino sotto il piano
-		for i in N:
-			var q: Vector2 = esterni[i]
-			var o := Vector3(q.x, 0, q.y).normalized()
-			verts.append(Vector3(cx + q.x, top - BEV, cz + q.y))
-			norms.append(o)
-			uvs.append(Vector2((c2.x + q.x / SC) / lx, (c2.y + q.y / SC) / lz))
-			cols.append(fianco)
-			verts.append(Vector3(cx + q.x, -0.03, cz + q.y))
-			norms.append(o)
-			uvs.append(Vector2((c2.x + q.x / SC) / lx, (c2.y + q.y / SC) / lz))
-			cols.append(fianco.darkened(0.35))
-		for i in N:
-			var j := (i + 1) % N
-			# piano
-			idx.append_array([b0, b0 + 1 + i, b0 + 1 + j])
-			# smusso
-			var ti := b0 + 1 + i
-			var tj := b0 + 1 + j
-			var ei := b0 + 1 + N + i
-			var ej := b0 + 1 + N + j
-			idx.append_array([ti, ei, ej, ti, ej, tj])
-			# fianco
-			var fi := b0 + 1 + 2 * N + 2 * i
-			var fj := b0 + 1 + 2 * N + 2 * j
-			idx.append_array([fi, fi + 1, fj + 1, fi, fj + 1, fj])
-	var arr := []
-	arr.resize(Mesh.ARRAY_MAX)
-	arr[Mesh.ARRAY_VERTEX] = verts
-	arr[Mesh.ARRAY_NORMAL] = norms
-	arr[Mesh.ARRAY_TEX_UV] = uvs
-	arr[Mesh.ARRAY_COLOR] = cols
-	arr[Mesh.ARRAY_INDEX] = idx
+		tutti.append([k, false])
+	for e in tutti:
+		var c2: Vector2 = Mappa.pos(e[0]) if e[1] else Mappa.pos_griglia(e[0])
+		for i in tas.size():
+			var z: Array = tas[i]["zona"]
+			if c2.x >= z[0] and c2.x < z[2] and c2.y >= z[1] and c2.y < z[3]:
+				gruppi[i].append([e[0], e[1], c2])
+				break
 	var am := ArrayMesh.new()
-	am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	for ti in tas.size():
+		var tx: Array = tas[ti]["tex"]
+		var tx0 := float(tx[0])
+		var ty0 := float(tx[1])
+		var tw := float(tx[2]) - tx0
+		var th := float(tx[3]) - ty0
+		var verts := PackedVector3Array()
+		var norms := PackedVector3Array()
+		var uvs := PackedVector2Array()
+		var cols := PackedColorArray()
+		var idx := PackedInt32Array()
+		for e in gruppi[ti]:
+			var k: String = e[0]
+			var gioco: bool = e[1]
+			var c2: Vector2 = e[2]
+			var cx := c2.x * SC
+			var cz := c2.y * SC
+			var top: float = quota(k) if gioco else 0.012
+			var tinta := Color(1, 1, 1) if gioco else Color(0.55, 0.55, 0.52)
+			var fianco := Color(0.55, 0.5, 0.42) if gioco else Color(0.3, 0.3, 0.28)
+			var b0 := verts.size()
+			verts.append(Vector3(cx, top, cz))
+			norms.append(Vector3.UP)
+			uvs.append(Vector2((c2.x - tx0) / tw, (c2.y - ty0) / th))
+			cols.append(tinta)
+			for i in N:
+				var q: Vector2 = anello[i]
+				verts.append(Vector3(cx + q.x, top, cz + q.y))
+				norms.append(Vector3.UP)
+				uvs.append(Vector2((c2.x + q.x / SC - tx0) / tw, (c2.y + q.y / SC - ty0) / th))
+				cols.append(tinta)
+			# fianchi (servono solo dove l'esagono è più alto del piano)
+			var alto := top > QUOTA_BASE + 0.001
+			if alto:
+				for i in N:
+					var q: Vector2 = anello[i]
+					var q2: Vector2 = anello[(i + 1) % N]
+					var o := Vector3((q.x + q2.x) / 2, 0, (q.y + q2.y) / 2).normalized()
+					for v in [[q, top], [q, -0.03], [q2, top], [q2, -0.03]]:
+						var qq: Vector2 = v[0]
+						verts.append(Vector3(cx + qq.x, v[1], cz + qq.y))
+						norms.append(o)
+						uvs.append(Vector2((c2.x + qq.x / SC - tx0) / tw, (c2.y + qq.y / SC - ty0) / th))
+						cols.append(fianco if v[1] > 0 else fianco.darkened(0.4))
+			for i in N:
+				var j := (i + 1) % N
+				idx.append_array([b0, b0 + 1 + i, b0 + 1 + j])
+				if alto:
+					var f := b0 + 1 + N + 4 * i
+					idx.append_array([f, f + 1, f + 3, f, f + 3, f + 2])
+		if verts.is_empty():
+			continue
+		var arr := []
+		arr.resize(Mesh.ARRAY_MAX)
+		arr[Mesh.ARRAY_VERTEX] = verts
+		arr[Mesh.ARRAY_NORMAL] = norms
+		arr[Mesh.ARRAY_TEX_UV] = uvs
+		arr[Mesh.ARRAY_COLOR] = cols
+		arr[Mesh.ARRAY_INDEX] = idx
+		am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+		var mt := StandardMaterial3D.new()
+		mt.albedo_texture = _con_mipmap("res://assets/mappa/" + str(tas[ti]["file"]))
+		mt.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+		mt.vertex_color_use_as_albedo = true
+		mt.roughness = 0.92
+		mt.cull_mode = BaseMaterial3D.CULL_DISABLED
+		am.surface_set_material(am.get_surface_count() - 1, mt)
 	var mi := MeshInstance3D.new()
 	mi.mesh = am
-	var mt := StandardMaterial3D.new()
-	mt.albedo_texture = _con_mipmap(Mappa.tex_nuova)
-	mt.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	mt.vertex_color_use_as_albedo = true
-	mt.roughness = 0.92
-	mt.cull_mode = BaseMaterial3D.CULL_BACK
-	mi.material_override = mt
 	return mi
 
 func _con_mipmap(path: String) -> Texture2D:
@@ -558,9 +542,16 @@ func _colore_unita(id: String) -> Color:
 	return Dati.NAZ.get(Motore.catalogo["unita"][id]["naz"], {}).get("col", Color.GRAY) if id.begins_with("u") else (COL_LATO[0] if Motore.catalogo["capi"][id]["es"] == "FR" else COL_LATO[1])
 
 func _aggiorna_pezzi() -> void:
-	for c in nodo_pezzi.get_children():
+	if nodo_stato == null or not is_instance_valid(nodo_stato):
+		nodo_stato = Node3D.new()
+		mondo.add_child(nodo_stato)
+	for c in nodo_stato.get_children():
 		c.queue_free()
 	if m == null:
+		for id in nodi_pezzi:
+			if is_instance_valid(nodi_pezzi[id]):
+				nodi_pezzi[id].queue_free()
+		nodi_pezzi.clear()
 		return
 	var esagoni := {}
 	var forzati: Dictionary = batt_rep.get("pos", {}) if (batt_aperta and batt_pre) else {}
@@ -581,25 +572,34 @@ func _aggiorna_pezzi() -> void:
 			if not esagoni.has(c["h"]):
 				esagoni[c["h"]] = []
 			esagoni[c["h"]].append(id)
+	var visti := {}
 	for h in esagoni:
 		var lista: Array = esagoni[h]
 		# prima le unità, poi i capi sopra
 		lista.sort_custom(func(a, b): return a.begins_with("u") and b.begins_with("c"))
-		var pila := Node3D.new()
-		pila.position = _v3(h)
-		nodo_pezzi.add_child(pila)
 		var i := 0
 		for id in lista:
 			var capo: bool = id.begins_with("c")
 			var path: String = img_pedina(id, (not capo) and m.s["unita"][id]["rid"])
-			var p := _pedina(path, _colore_unita(id), LATO_PEDINA * (0.82 if capo else 1.0))
-			p.position = Vector3(i * 0.05, i * (SPESSORE + 0.004), -i * 0.05)
-			if not capo:
-				var u: Dictionary = m.s["unita"][id]
-				if u["mosso"] or u["att"]:
-					p.position.y += 0.0
-				# segno di unità che ha già agito: un filo di luce sotto
-			pila.add_child(p)
+			var dest := _v3(h) + Vector3(i * 0.05, i * (SPESSORE + 0.004), -i * 0.05)
+			var n = nodi_pezzi.get(id)
+			if n == null or not is_instance_valid(n) or str(n.get_meta("img", "")) != path:
+				var vecchia: Vector3 = n.position if (n != null and is_instance_valid(n)) else Vector3.INF
+				if n != null and is_instance_valid(n):
+					n.queue_free()
+				n = _pedina(path, _colore_unita(id), LATO_PEDINA * (0.82 if capo else 1.0))
+				n.set_meta("img", path)
+				nodo_pezzi.add_child(n)
+				nodi_pezzi[id] = n
+				if vecchia != Vector3.INF:
+					n.position = vecchia
+				elif percorsi.has(id):
+					n.position = _v3(percorsi[id][0])
+				else:
+					n.position = dest
+					n.set_meta("dest", dest)
+			_muovi_pedina(id, n, dest)
+			visti[id] = true
 			i += 1
 		# segnalini di stato
 		var demo := false
@@ -621,8 +621,115 @@ func _aggiorna_pezzi() -> void:
 			lb.outline_modulate = C_ROSSO.darkened(0.3)
 			lb.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 			lb.no_depth_test = true
-			lb.position = Vector3(-0.22, i * (SPESSORE + 0.004) + 0.1, 0.22)
-			pila.add_child(lb)
+			lb.position = _v3(h) + Vector3(-0.22, i * (SPESSORE + 0.004) + 0.1, 0.22)
+			nodo_stato.add_child(lb)
+	# chi non c'è più: eliminato (con l'effetto) o uscito dalla mappa
+	for id in nodi_pezzi.keys():
+		if visti.has(id):
+			continue
+		var n = nodi_pezzi[id]
+		nodi_pezzi.erase(id)
+		if n == null or not is_instance_valid(n):
+			continue
+		var eliminato := false
+		if id.begins_with("u"):
+			eliminato = str(m.s["unita"][id]["st"]) in ["elim", "riorg", "distrutta"]
+		else:
+			eliminato = str(m.s["capi"][id]["st"]) == "elim"
+		if eliminato:
+			_anima_eliminazione(n)
+		else:
+			n.queue_free()
+	percorsi.clear()
+
+## Scorrimento della pedina: lungo il percorso della mossa, esagono per esagono, oppure dritta
+func _muovi_pedina(id: String, n: Node3D, dest: Vector3) -> void:
+	var d0 = n.get_meta("dest") if n.has_meta("dest") else null
+	if d0 is Vector3 and (d0 as Vector3).is_equal_approx(dest) and not percorsi.has(id):
+		return
+	n.set_meta("dest", dest)
+	var tw0 = n.get_meta("tw") if n.has_meta("tw") else null
+	if tw0 is Tween and (tw0 as Tween).is_valid():
+		(tw0 as Tween).kill()
+	if n.position.distance_to(dest) < 0.001:
+		return
+	var tw := create_tween()
+	n.set_meta("tw", tw)
+	var punti := []
+	if percorsi.has(id):
+		var p: Array = percorsi[id]
+		for k in range(1, p.size() - 1):
+			punti.append(_v3(p[k]))
+	punti.append(dest)
+	var prec := n.position
+	for q in punti:
+		var tratto: float = clampf(prec.distance_to(q) / 0.75, 0.3, 2.0) * 0.16
+		# un piccolo salto a metà di ogni passo
+		var alto: Vector3 = (prec + q) / 2 + Vector3(0, 0.08, 0)
+		tw.tween_property(n, "position", alto, tratto / 2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		tw.tween_property(n, "position", q, tratto / 2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+		prec = q
+
+## Unità eliminata: lampo, fumo e la pedina che salta via ruotando e svanisce
+func _anima_eliminazione(n: Node3D) -> void:
+	var p := n.position
+	var lampo := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = 0.3
+	sm.height = 0.6
+	sm.radial_segments = 16
+	sm.rings = 8
+	lampo.mesh = sm
+	var ml := StandardMaterial3D.new()
+	ml.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ml.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	ml.albedo_color = Color(1, 0.75, 0.3, 0.9)
+	lampo.material_override = ml
+	lampo.position = p + Vector3(0, 0.12, 0)
+	lampo.scale = Vector3.ONE * 0.15
+	mondo.add_child(lampo)
+	var tl := create_tween()
+	tl.tween_property(lampo, "scale", Vector3.ONE * 1.1, 0.28).set_ease(Tween.EASE_OUT)
+	tl.parallel().tween_property(ml, "albedo_color", Color(1, 0.45, 0.1, 0.0), 0.4)
+	tl.tween_callback(lampo.queue_free)
+	# fumo
+	var fumo := CPUParticles3D.new()
+	var qm := QuadMesh.new()
+	qm.size = Vector2(0.34, 0.34)
+	var mf := StandardMaterial3D.new()
+	mf.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mf.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mf.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	mf.vertex_color_use_as_albedo = true
+	qm.material = mf
+	fumo.mesh = qm
+	fumo.amount = 26
+	fumo.lifetime = 1.3
+	fumo.one_shot = true
+	fumo.explosiveness = 0.85
+	fumo.direction = Vector3.UP
+	fumo.spread = 75
+	fumo.initial_velocity_min = 0.25
+	fumo.initial_velocity_max = 0.7
+	fumo.gravity = Vector3(0, 0.25, 0)
+	fumo.damping_min = 0.6
+	fumo.damping_max = 1.0
+	fumo.scale_amount_min = 0.6
+	fumo.scale_amount_max = 1.6
+	var gr := Gradient.new()
+	gr.set_color(0, Color(0.42, 0.4, 0.37, 0.9))
+	gr.set_color(1, Color(0.75, 0.73, 0.7, 0.0))
+	fumo.color_ramp = gr
+	fumo.position = p + Vector3(0, 0.1, 0)
+	mondo.add_child(fumo)
+	fumo.emitting = true
+	get_tree().create_timer(2.0).timeout.connect(fumo.queue_free)
+	# la pedina vola via
+	var tw := create_tween()
+	tw.tween_property(n, "position", p + Vector3(randf_range(-0.2, 0.2), 0.7, randf_range(-0.2, 0.2)), 0.6).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(n, "rotation", Vector3(randf_range(2, 4), randf_range(-2, 2), randf_range(2, 4)), 0.6)
+	tw.parallel().tween_property(n, "scale", Vector3.ONE * 0.05, 0.6).set_ease(Tween.EASE_IN)
+	tw.tween_callback(n.queue_free)
 
 # ---------- evidenziazioni
 
@@ -711,6 +818,73 @@ func _mesh_freccia(ini: float, fin: float, punta: float, mezza: float, mezza_pun
 	mi.material_override = cache_mat[k]
 	return mi
 
+## Tiro d'artiglieria: un arco in 3D (tubo lungo una parabola) con la punta sul bersaglio
+func _parabola(da: String, a: String, colore: Color) -> Node3D:
+	var p0 := _v3(da, 0.12)
+	var p1 := _v3(a, 0.12)
+	var dist := p0.distance_to(p1)
+	# arco alto e un po' inclinato di lato: si legge come curva anche guardando la mappa dall'alto
+	var lato_arco := (p1 - p0).cross(Vector3.UP).normalized()
+	var alt_arco := 0.3 + dist * 0.22
+	var apice := (p0 + p1) / 2 + Vector3(0, alt_arco, 0) + lato_arco * alt_arco * 0.7
+	var n := Node3D.new()
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var SEG := 22
+	var LATI := 8
+	var rag := 0.028
+	var fine_t := 0.86            # il tubo finisce dove comincia la punta
+	var anelli := []
+	for s in SEG + 1:
+		var u := fine_t * float(s) / SEG
+		var c := p0 * (1 - u) * (1 - u) + apice * 2 * u * (1 - u) + p1 * u * u
+		var tg := ((apice - p0) * 2 * (1 - u) + (p1 - apice) * 2 * u).normalized()
+		var lat := tg.cross(Vector3.UP).normalized()
+		if lat.length() < 0.01:
+			lat = Vector3.RIGHT
+		var su := lat.cross(tg).normalized()
+		var anello := []
+		for k in LATI:
+			var ang := TAU * k / LATI
+			anello.append(c + (lat * cos(ang) + su * sin(ang)) * rag)
+		anelli.append(anello)
+	for s in SEG:
+		for k in LATI:
+			var a0: Vector3 = anelli[s][k]
+			var a1: Vector3 = anelli[s][(k + 1) % LATI]
+			var b0: Vector3 = anelli[s + 1][k]
+			var b1: Vector3 = anelli[s + 1][(k + 1) % LATI]
+			for v in [a0, b0, b1, a0, b1, a1]:
+				st.add_vertex(v)
+	var tubo := MeshInstance3D.new()
+	tubo.mesh = st.commit()
+	var mt := StandardMaterial3D.new()
+	mt.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mt.albedo_color = colore
+	mt.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mt.no_depth_test = true
+	mt.render_priority = 12
+	tubo.material_override = mt
+	n.add_child(tubo)
+	# punta: un cono lungo la tangente finale
+	var u := fine_t
+	var cf := p0 * (1 - u) * (1 - u) + apice * 2 * u * (1 - u) + p1 * u * u
+	var tg := (p1 - cf).normalized()
+	var cono := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.0
+	cm.bottom_radius = 0.075
+	cm.height = cf.distance_to(p1)
+	cm.radial_segments = 10
+	cono.mesh = cm
+	cono.material_override = mt
+	var asse_y := tg
+	var asse_x := asse_y.cross(Vector3.FORWARD if absf(asse_y.dot(Vector3.FORWARD)) < 0.9 else Vector3.RIGHT).normalized()
+	var asse_z := asse_x.cross(asse_y).normalized()
+	cono.transform = Transform3D(Basis(asse_x, asse_y, asse_z), (cf + p1) / 2)
+	n.add_child(cono)
+	return n
+
 ## Frecce di un attacco: dagli esagoni degli attaccanti a quello difeso (tratteggiate per il bombardamento)
 func _frecce_attacco(att: Array, dif: Array, pos: Dictionary, colore: Color) -> void:
 	var fatte := {}
@@ -732,11 +906,16 @@ func _frecce_attacco(att: Array, dif: Array, pos: Dictionary, colore: Color) -> 
 				if dd < bd:
 					bd = dd
 					bersaglio = d
-		var k := h + ">" + bersaglio
+		var art: bool = m.s["unita"].has(id) and m.tipo(id) in ["A", "HA"]
+		var k := h + ">" + bersaglio + (">a" if art else "")
 		if bersaglio == "" or fatte.has(k):
 			continue
 		fatte[k] = true
-		nodo_evid.add_child(_freccia(h, bersaglio, Color(0.95, 0.68, 0.12) if bomb else colore, bomb))
+		if art:
+			# il cannone tira ad arco, anche da vicino
+			nodo_evid.add_child(_parabola(h, bersaglio, Color(0.98, 0.62, 0.1)))
+		else:
+			nodo_evid.add_child(_freccia(h, bersaglio, colore, bomb))
 
 func _aggiorna_evidenze() -> void:
 	for c in nodo_evid.get_children():
@@ -800,6 +979,11 @@ func _aggiorna_evidenze() -> void:
 				e.position = _v3(h, 0.008)
 				nodo_evid.add_child(e)
 			_frecce_attacco(batt_rep["att"], batt_rep["dif_hex"], pos, Color(0.86, 0.12, 0.06))
+		else:
+			# ritirate: dalla posizione di prima a quella dove l'unità si è fermata
+			for id in batt_rep.get("rit", []):
+				if pos.has(id) and m.s["unita"][id]["st"] == "mappa" and m.s["unita"][id]["h"] != pos[id]:
+					nodo_evid.add_child(_freccia(pos[id], m.s["unita"][id]["h"], Color(0.97, 0.95, 0.88)))
 	if hover != "" and hover != sel_hex:
 		var a := _anello(Color(1, 1, 1, 1), 0.42)
 		a.position = _v3(hover)
@@ -1506,7 +1690,7 @@ func _menu_partita() -> void:
 	for x in [["lenta", 0.5], ["normale", 1.0], ["veloce", 3.0]]:
 		gv.add_child(bottone(x[0], func(): velocita = x[1], 16))
 	v.add_child(gv)
-	if Mappa.tex_nuova != "":
+	if not Mappa.tasselli_nuova.is_empty():
 		v.add_child(bottone("Mappa: " + ("ridisegnata in 3D (passa all'originale)" if mappa_nuova else "originale (passa a quella ridisegnata in 3D)"), func():
 			_chiudi_popup()
 			_cambia_mappa(), 18))
@@ -1770,9 +1954,7 @@ func _aggiorna_pannello() -> void:
 			lbl_stato.text = "%s: combattimento. Tocca un esagono nemico (in arancio quelli da attaccare per forza), scegli chi attacca e premi «Attacca»." % Dati.LATI[lato]
 			_pannello_combattimento(lato)
 		"avanza":
-			lbl_stato.text = "Il nemico ha lasciato l'esagono: un'unità vincitrice può avanzare. Tocca sulla mappa un'unità con l'anello d'oro; l'esagono libero è in blu."
-			if not batt_aperta:
-				box_azioni.add_child(bottone("Nessuna avanzata", func(): _invia({"a": "avanza", "u": ""}), 18))
+			lbl_stato.text = "Il nemico ha lasciato l'esagono: un'unità vincitrice può avanzare. Tocca sulla mappa un'unità con l'anello d'oro per farla avanzare, oppure l'esagono vuoto (in blu) per restare dove sei."
 			var viste := {}
 			for c in r["cand"]:
 				if not viste.has(c[0]):
@@ -1954,7 +2136,9 @@ func _clic(h: String) -> void:
 		return
 	if _fase_mia("avanza") and h != "":
 		if batt_pre:
+			# durante l'animazione un tocco porta subito all'esito
 			_finale_battaglia()
+			return
 		_clic_avanza(h)
 		return
 	sel_hex = h
@@ -2339,10 +2523,8 @@ func _bottoni_battaglia() -> void:
 	for c in batt_bottoni.get_children():
 		c.queue_free()
 	if coda_rapporti.is_empty() and _fase_mia("avanza"):
-		batt_lbl_dett.text += ("  " if batt_lbl_dett.text.strip_edges() != "" else "") + "Avanzata: tocca un'unità illuminata sulla mappa per farla avanzare."
-		batt_bottoni.add_child(bottone("Nessuna avanzata", func():
-			_chiudi_battaglia()
-			_invia({"a": "avanza", "u": ""}), 19))
+		# c'è una scelta da fare: si tocca la mappa, nessun tasto
+		batt_lbl_dett.text += ("  " if batt_lbl_dett.text.strip_edges() != "" else "") + "Avanzata: tocca un'unità illuminata per farla avanzare, oppure l'esagono vuoto per restare dove sei."
 		_aggiorna_pannello()
 		return
 	var la := int(batt_rep["lato"])
@@ -2386,6 +2568,16 @@ func _clic_avanza(h: String) -> void:
 		dest[c[0]].append(c[1])
 	if sel_avanza != "" and dest.get(sel_avanza, []).has(h):
 		_avanza_con(sel_avanza, h)
+		return
+	# l'esagono lasciato libero: si rinuncia all'avanzata
+	var vuoti := {}
+	for c in rq["cand"]:
+		vuoti[c[1]] = true
+	if vuoti.has(h):
+		sel_avanza = ""
+		if batt_aperta:
+			_chiudi_battaglia()
+		_invia({"a": "avanza", "u": ""})
 		return
 	var qui := []
 	for id in dest:
@@ -2480,6 +2672,7 @@ func _applica(d: Dictionary) -> void:
 	var lato_prima: int = m.s["lato"]
 	var turno_prima: int = m.s["turno"]
 	var chi := _chi(int(m.richiesta().get("lato", lato_prima)))
+	_prepara_percorso(d)
 	if not m.applica(d):
 		if chi == "io":
 			if d.get("a", "") == "fine" and m.richiesta().get("k", "") == "movimento":
@@ -2511,6 +2704,40 @@ func _applica(d: Dictionary) -> void:
 	if m.finita():
 		_salva(true)
 		_mostra_fine()
+
+## Esagoni attraversati da una mossa, per far scorrere la pedina passo per passo
+func _prepara_percorso(d: Dictionary) -> void:
+	var id := ""
+	var rg := {}
+	match d.get("a", ""):
+		"muovi":
+			id = d.get("u", "")
+			if m.s["unita"].has(id):
+				rg = m.raggiungibili(id)
+		"entra":
+			id = d.get("u", "")
+			if m.s["unita"].has(id):
+				rg = m.raggiungibili_arrivo(id)
+		"capo":
+			id = d.get("c", "")
+			if m.s["capi"].has(id):
+				rg = m.raggiungibili(id)
+	var h: String = d.get("h", "")
+	if id == "" or not rg.has(h):
+		return
+	var p := [h]
+	var guard := 0
+	while guard < 40:
+		guard += 1
+		var da: String = str(rg[p[0]].get("da", ""))
+		if da == "" or not rg.has(da):
+			break
+		p.push_front(da)
+	if d["a"] == "entra":
+		var ing: String = str(rg[h].get("ing", p[0]))
+		if ing != p[0]:
+			p.push_front(ing)
+	percorsi[id] = p
 
 func _salva(subito: bool) -> void:
 	if online or m == null:

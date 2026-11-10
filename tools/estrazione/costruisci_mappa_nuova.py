@@ -4,6 +4,8 @@ allineata alla griglia del gioco e aggiunge a mappa.json le quote degli esagoni 
 
 La griglia di ogni mappa nuova (griglia_nuova.json) è stata ricavata dalle linee degli esagoni e
 verificata esagono per esagono contro quella delle scansioni originali (scarto medio 2-3 px su 35).
+Le mappe nuove sono in alta risoluzione (stesse dimensioni delle scansioni): l'immagine finale ha la
+scala delle coordinate del gioco ed è divisa in quattro tasselli.
 Uso: costruisci_mappa_nuova.py NUOVE assets/mappa"""
 import json, sys, os, numpy as np
 from PIL import Image
@@ -17,8 +19,9 @@ OFF = {'B': (0, 0), 'W': (28, 0), 'Q': (0, 33), 'L': (28, 33)}
 PRIO = ['W', 'B', 'L', 'Q']
 DX, DY = MJ['DX'], MJ['DY']
 X0, Y0 = 0.6 * DX, 0.4 * DY
-K = 0.5                                   # scala della texture rispetto alle coordinate della mappa
+K = 1.0                                   # scala della texture rispetto alle coordinate della mappa
 W, H = int(MJ['larg'] * K), int(MJ['alt'] * K)
+Image.MAX_IMAGE_PIXELS = None
 IMG = {m: np.asarray(Image.open(f'{NUOVE}/{f}').convert('RGB')) for m, f in FILE.items()}
 
 def centro_nuovo(m, c, r):
@@ -79,8 +82,20 @@ for i, m in enumerate(PRIO):
     x0 = np.floor(xi).astype(int); y0 = np.floor(yi).astype(int); fx = (xi - x0)[:, None]; fy = (yi - y0)[:, None]
     p = (img[y0, x0] * (1 - fx) * (1 - fy) + img[y0, x0 + 1] * fx * (1 - fy) + img[y0 + 1, x0] * (1 - fx) * fy + img[y0 + 1, x0 + 1] * fx * fy)
     canvas[sel] = p.astype(np.uint8)
-Image.fromarray(canvas).save(f'{OUT}/mappa_nuova.webp', quality=88, method=6)
-Image.fromarray(canvas).resize((W // 4, H // 4)).save('/tmp/anteprima_nuova.png')
+# quattro tasselli con un margine (un esagono) per le tessere a cavallo dei bordi
+img = Image.fromarray(canvas)
+PAD = int(DX * 1.2)
+TW, TH = (W + 1) // 2, (H + 1) // 2
+tasselli = []
+for j in range(2):
+    for i in range(2):
+        x0, y0 = max(0, i * TW - PAD), max(0, j * TH - PAD)
+        x1, y1 = min(W, (i + 1) * TW + PAD), min(H, (j + 1) * TH + PAD)
+        nome = f'mappa_nuova_{j}{i}.webp'
+        img.crop((x0, y0, x1, y1)).save(f'{OUT}/{nome}', quality=86, method=6)
+        # zona di competenza (centri degli esagoni) e riquadro reale della texture, in pixel della mappa
+        tasselli.append({'file': nome, 'zona': [i * TW, j * TH, (i + 1) * TW, (j + 1) * TH], 'tex': [x0, y0, x1, y1]})
+img.resize((W // 8, H // 8)).save('/tmp/anteprima_nuova.png')
 
 # ---------- esagoni decorativi (disegnati nelle mappe nuove ma fuori dal gioco)
 deco = []
@@ -124,7 +139,7 @@ for k, v in MJ['lati'].items():
 for k, v in E.items():
     if v['t'] in ('citta', 'castello') and quote.get(k) != 'c':
         quote[k] = 'e' if v['t'] == 'citta' else 'f'
-MJ['nuova'] = {'tex': 'mappa_nuova.webp', 'scala': K, 'quote': quote, 'decorativi': deco}
+MJ['nuova'] = {'tasselli': tasselli, 'scala': K, 'quote': quote, 'decorativi': deco}
 json.dump(MJ, open(f'{OUT}/mappa.json', 'w'), separators=(',', ':'))
 import collections
 print('texture', W, H, 'decorativi', len(deco), 'quote', collections.Counter(quote.values()))
