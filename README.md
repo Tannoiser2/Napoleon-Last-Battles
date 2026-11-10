@@ -13,6 +13,15 @@ Si gioca qui: https://tannoiser2.github.io/Napoleon-Last-Battles/ (e nella ludot
   (57 × 67 esagoni, `assets/mappa/`, quattro tasselli webp). Terreni, corsi d'acqua, ponti, creste, strade e sentieri
   sono stati riconosciuti dai colori della mappa (`tools/estrazione/`): la griglia è stata agganciata leggendo con
   l'OCR i numeri degli esagoni. Ogni esagono conserva la sigla originale (es. B0617 = Hougoumont).
+- **Mappa ridisegnata in 3D** (predefinita; dal Menu si torna alle scansioni originali): le quattro mappe
+  restyled unite in `assets/mappa/mappa_nuova.webp` da `tools/estrazione/costruisci_mappa_nuova.py`. La loro griglia è
+  stata ricavata dalle linee degli esagoni e confrontata esagono per esagono con quella delle scansioni (scarto
+  medio 2-3 px su un passo di 35, numerazione identica). Ogni esagono è una tessera con gli spigoli arrotondati;
+  creste, paesi e fattorie sono rialzati e le pedine si appoggiano alla quota giusta.
+  Il confronto ha anche scoperto errori nei terreni estratti dalle scansioni: titoli, rose dei venti, nomi e
+  simboli di schieramento stampati in blu erano stati letti come paesi, laghi o corsi d'acqua (59 esagoni e 66
+  lati, corretti con `tools/estrazione/correggi_terreni.py` e `correzioni_terreni.json`; il lago Materne di Quatre
+  Bras ora è un lago).
 - **Pedine**: le 205 pedine originali col loro retro a forza ridotta e i 31 capi (`assets/pedine/`,
   `assets/dati/catalogo.json`); gli schieramenti dei Folio vengono dalle posizioni del modulo TTS, quelli della
   campagna dall'elenco `NLB_Campaign_Setup.pdf` e dalle tracce dei turni stampate sulle mappe.

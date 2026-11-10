@@ -11,6 +11,9 @@ static var DX := 73.78
 static var DY := 85.06
 static var tasselli := [2147, 2905]
 static var _vic := {}
+static var quote := {}         # mappa ridisegnata: c cresta, e paese, f fattoria
+static var decorativi := []    # esagoni disegnati nelle mappe nuove ma fuori dal gioco
+static var tex_nuova := ""
 
 static func carica() -> void:
 	if not esagoni.is_empty():
@@ -24,12 +27,22 @@ static func carica() -> void:
 	DX = float(d["DX"])
 	DY = float(d["DY"])
 	tasselli = d["tasselli"]
+	if d.has("nuova"):
+		quote = d["nuova"]["quote"]
+		decorativi = d["nuova"]["decorativi"]
+		tex_nuova = "res://assets/mappa/" + str(d["nuova"]["tex"])
 	for k in esagoni:
 		var v := []
 		for n in _intorno(k):
 			if esagoni.has(n):
 				v.append(n)
 		_vic[k] = v
+
+## Centro di un esagono qualsiasi della griglia (anche fuori dal gioco), in pixel della mappa
+static func pos_griglia(k: String) -> Vector2:
+	var c := int(k.substr(0, 2))
+	var r := int(k.substr(2, 2))
+	return Vector2(0.6 * DX + c * DX, 0.4 * DY + (r + (0.5 if c % 2 == 0 else 0.0)) * DY)
 
 static func col(h: String) -> int:
 	return int(h.substr(0, 2))

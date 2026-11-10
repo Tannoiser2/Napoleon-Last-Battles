@@ -43,6 +43,9 @@ var mouse_giu := Vector2.ZERO
 var tocchi := {}
 var due_dita := false
 var cache_tex := {}
+var nodo_mappa: Node3D
+var mappa_nuova := true       # mappa ridisegnata in 3D; false = scansioni originali piatte
+const SALVA_OPZIONI := "user://opzioni_napoleonlb.json"
 var cache_mat := {}
 
 var in_partita := false
@@ -257,15 +260,15 @@ func _costruisci_mondo() -> void:
 	e.background_mode = Environment.BG_COLOR
 	e.background_color = Color(0.05, 0.06, 0.1)
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	e.ambient_light_color = Color(0.95, 0.9, 0.82)
-	e.ambient_light_energy = 0.5
-	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	e.ambient_light_color = Color(1, 1, 1)
+	e.ambient_light_energy = 0.27
+	e.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	env.environment = e
 	mondo.add_child(env)
 	var luce := DirectionalLight3D.new()
 	luce.rotation_degrees = Vector3(-58, 35, 0)
-	luce.light_energy = 0.8
-	luce.light_color = Color(1.0, 0.95, 0.86)
+	luce.light_energy = 0.33
+	luce.light_color = Color(1.0, 0.98, 0.95)
 	luce.shadow_enabled = true
 	luce.directional_shadow_max_distance = 26.0
 	mondo.add_child(luce)
@@ -295,7 +298,44 @@ func _costruisci_mondo() -> void:
 	bordo.material_override = mb
 	bordo.position = Vector3(lx / 2, -0.032, lz / 2)
 	mondo.add_child(bordo)
-	# le quattro mappe originali, unite (in quattro tasselli per le texture)
+	nodo_mappa = Node3D.new()
+	mondo.add_child(nodo_mappa)
+	_carica_opzioni()
+	_costruisci_mappa()
+	nodo_evid = Node3D.new()
+	mondo.add_child(nodo_evid)
+	nodo_pezzi = Node3D.new()
+	mondo.add_child(nodo_pezzi)
+	_aggiorna_camera()
+
+func _carica_opzioni() -> void:
+	if FileAccess.file_exists(SALVA_OPZIONI):
+		var d = JSON.parse_string(FileAccess.get_file_as_string(SALVA_OPZIONI))
+		if d is Dictionary:
+			mappa_nuova = bool(d.get("mappa_nuova", true))
+	if Mappa.tex_nuova == "":
+		mappa_nuova = false
+
+func _salva_opzioni() -> void:
+	var f := FileAccess.open(SALVA_OPZIONI, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify({"mappa_nuova": mappa_nuova}))
+
+func _cambia_mappa() -> void:
+	mappa_nuova = not mappa_nuova
+	_salva_opzioni()
+	_costruisci_mappa()
+	if m != null:
+		_aggiorna_pezzi()
+		_aggiorna_evidenze()
+
+func _costruisci_mappa() -> void:
+	for c in nodo_mappa.get_children():
+		c.queue_free()
+	if mappa_nuova:
+		nodo_mappa.add_child(_mappa_esagoni())
+		return
+	# le quattro scansioni originali, unite (in quattro tasselli per le texture)
 	var tw: float = float(Mappa.tasselli[0])
 	var th: float = float(Mappa.tasselli[1])
 	for j in 2:
@@ -312,12 +352,130 @@ func _costruisci_mondo() -> void:
 			mm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			mp.material_override = mm
 			mp.position = Vector3((i * tw + w / 2) * SC, 0, (j * th + h / 2) * SC)
-			mondo.add_child(mp)
-	nodo_evid = Node3D.new()
-	mondo.add_child(nodo_evid)
-	nodo_pezzi = Node3D.new()
-	mondo.add_child(nodo_pezzi)
-	_aggiorna_camera()
+			nodo_mappa.add_child(mp)
+
+## Quota del piano di un esagono (le pedine e le evidenze ci si appoggiano sopra)
+const QUOTA_BASE := 0.035
+const QUOTE := {"c": 0.16, "e": 0.075, "f": 0.1}
+func quota(h: String) -> float:
+	if not mappa_nuova:
+		return 0.0
+	return QUOTE.get(Mappa.quote.get(h, ""), QUOTA_BASE)
+
+## La mappa ridisegnata in 3D: una tessera per esagono con gli spigoli arrotondati; creste, paesi e
+## fattorie sono rialzati. La texture è unica e allineata alla griglia del gioco.
+func _mappa_esagoni() -> MeshInstance3D:
+	var R := Mappa.DX * SC / 1.5
+	var hh := Mappa.DY * SC / 2.0
+	# contorno arrotondato: per ogni spigolo due punti sui lati e uno a metà curva
+	# gli spigoli di un esagono con il lato piatto in alto
+	var spig: Array[Vector2] = [Vector2(R, 0), Vector2(R / 2, hh), Vector2(-R / 2, hh), Vector2(-R, 0), Vector2(-R / 2, -hh), Vector2(R / 2, -hh)]
+	var anello: Array[Vector2] = []
+	var t := 0.2
+	for i in 6:
+		var v: Vector2 = spig[i]
+		var p: Vector2 = spig[(i + 5) % 6]
+		var n: Vector2 = spig[(i + 1) % 6]
+		var a := v + (p - v) * t
+		var b := v + (n - v) * t
+		anello.append(a)
+		anello.append(a * 0.25 + v * 0.5 + b * 0.25)
+		anello.append(b)
+	var N := anello.size()
+	var esterni: Array[Vector2] = []
+	var interni: Array[Vector2] = []
+	var normali: Array[Vector3] = []
+	for q in anello:
+		esterni.append(q * 0.985)
+		interni.append(q * 0.93)
+		var o := Vector3(q.x, 0, q.y).normalized()
+		normali.append((o * 0.75 + Vector3.UP * 0.66).normalized())
+	var BEV := 0.022
+	var verts := PackedVector3Array()
+	var norms := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var cols := PackedColorArray()
+	var idx := PackedInt32Array()
+	var lista := []
+	for k in Mappa.esagoni:
+		lista.append([k, true])
+	for k in Mappa.decorativi:
+		lista.append([k, false])
+	var lx := Mappa.larg
+	var lz := Mappa.alt
+	for e in lista:
+		var k: String = e[0]
+		var gioco: bool = e[1]
+		var c2: Vector2 = Mappa.pos(k) if gioco else Mappa.pos_griglia(k)
+		var cx := c2.x * SC
+		var cz := c2.y * SC
+		var top: float = quota(k) if gioco else 0.012
+		var tinta := Color(1, 1, 1) if gioco else Color(0.55, 0.55, 0.52)
+		var fianco := Color(0.5, 0.45, 0.38) if gioco else Color(0.3, 0.3, 0.28)
+		var b0 := verts.size()
+		# centro e anello superiore
+		verts.append(Vector3(cx, top, cz))
+		norms.append(Vector3.UP)
+		uvs.append(Vector2(c2.x / lx, c2.y / lz))
+		cols.append(tinta)
+		for i in N:
+			var q: Vector2 = interni[i]
+			verts.append(Vector3(cx + q.x, top, cz + q.y))
+			norms.append(Vector3.UP)
+			uvs.append(Vector2((c2.x + q.x / SC) / lx, (c2.y + q.y / SC) / lz))
+			cols.append(tinta)
+		# anello del bordo arrotondato
+		for i in N:
+			var q: Vector2 = esterni[i]
+			verts.append(Vector3(cx + q.x, top - BEV, cz + q.y))
+			norms.append(normali[i])
+			uvs.append(Vector2((c2.x + q.x / SC) / lx, (c2.y + q.y / SC) / lz))
+			cols.append(tinta.darkened(0.12))
+		# fianco: dal bordo fino sotto il piano
+		for i in N:
+			var q: Vector2 = esterni[i]
+			var o := Vector3(q.x, 0, q.y).normalized()
+			verts.append(Vector3(cx + q.x, top - BEV, cz + q.y))
+			norms.append(o)
+			uvs.append(Vector2((c2.x + q.x / SC) / lx, (c2.y + q.y / SC) / lz))
+			cols.append(fianco)
+			verts.append(Vector3(cx + q.x, -0.03, cz + q.y))
+			norms.append(o)
+			uvs.append(Vector2((c2.x + q.x / SC) / lx, (c2.y + q.y / SC) / lz))
+			cols.append(fianco.darkened(0.35))
+		for i in N:
+			var j := (i + 1) % N
+			# piano
+			idx.append_array([b0, b0 + 1 + i, b0 + 1 + j])
+			# smusso
+			var ti := b0 + 1 + i
+			var tj := b0 + 1 + j
+			var ei := b0 + 1 + N + i
+			var ej := b0 + 1 + N + j
+			idx.append_array([ti, ei, ej, ti, ej, tj])
+			# fianco
+			var fi := b0 + 1 + 2 * N + 2 * i
+			var fj := b0 + 1 + 2 * N + 2 * j
+			idx.append_array([fi, fi + 1, fj + 1, fi, fj + 1, fj])
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = verts
+	arr[Mesh.ARRAY_NORMAL] = norms
+	arr[Mesh.ARRAY_TEX_UV] = uvs
+	arr[Mesh.ARRAY_COLOR] = cols
+	arr[Mesh.ARRAY_INDEX] = idx
+	var am := ArrayMesh.new()
+	am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	var mi := MeshInstance3D.new()
+	mi.mesh = am
+	var mt := StandardMaterial3D.new()
+	mt.albedo_texture = _con_mipmap(Mappa.tex_nuova)
+	mt.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	mt.vertex_color_use_as_albedo = true
+	mt.roughness = 0.92
+	mt.cull_mode = BaseMaterial3D.CULL_BACK
+	mi.material_override = mt
+	return mi
 
 func _con_mipmap(path: String) -> Texture2D:
 	var t: Texture2D = load(path)
@@ -349,7 +507,7 @@ func _aggiorna_camera() -> void:
 
 func _v3(h: String, alt := 0.0) -> Vector3:
 	var p := Mappa.pos(h)
-	return Vector3(p.x * SC, alt, p.y * SC)
+	return Vector3(p.x * SC, alt + quota(h), p.y * SC)
 
 func _mat_img(path: String) -> StandardMaterial3D:
 	if cache_mat.has(path):
@@ -636,11 +794,11 @@ func _aggiorna_evidenze() -> void:
 					nodo_evid.add_child(_freccia(hu, c[1], Color(0.2, 0.5, 0.95)))
 	if batt_aperta and not batt_rep.is_empty():
 		var pos: Dictionary = batt_rep.get("pos", {})
-		for h in batt_rep["dif_hex"]:
-			var e := _esagono_mesh(Color(0.9, 0.08, 0.05, 0.42))
-			e.position = _v3(h, 0.008)
-			nodo_evid.add_child(e)
 		if batt_pre:
+			for h in batt_rep["dif_hex"]:
+				var e := _esagono_mesh(Color(0.9, 0.08, 0.05, 0.42))
+				e.position = _v3(h, 0.008)
+				nodo_evid.add_child(e)
 			_frecce_attacco(batt_rep["att"], batt_rep["dif_hex"], pos, Color(0.86, 0.12, 0.06))
 	if hover != "" and hover != sel_hex:
 		var a := _anello(Color(1, 1, 1, 1), 0.42)
@@ -654,11 +812,20 @@ func _esagono_sotto(pos: Vector2) -> String:
 	var d := cam.project_ray_normal(pos)
 	if absf(d.y) < 0.0001:
 		return ""
-	var t := -o.y / d.y
+	var piano := QUOTA_BASE if mappa_nuova else 0.0
+	var t := (piano - o.y) / d.y
 	if t < 0:
 		return ""
 	var p := o + d * t
-	return Mappa.esagono_in(Vector2(p.x / SC, p.z / SC))
+	var h := Mappa.esagono_in(Vector2(p.x / SC, p.z / SC))
+	if mappa_nuova and h != "":
+		# gli esagoni rialzati: si riprova alla loro quota
+		var t2 := (quota(h) - o.y) / d.y
+		var p2 := o + d * t2
+		var h2 := Mappa.esagono_in(Vector2(p2.x / SC, p2.z / SC))
+		if h2 != "" and absf(quota(h2) - quota(h)) < 0.001:
+			h = h2
+	return h
 
 func _unhandled_input(ev: InputEvent) -> void:
 	if not in_partita or popup_aperto:
@@ -1339,6 +1506,10 @@ func _menu_partita() -> void:
 	for x in [["lenta", 0.5], ["normale", 1.0], ["veloce", 3.0]]:
 		gv.add_child(bottone(x[0], func(): velocita = x[1], 16))
 	v.add_child(gv)
+	if Mappa.tex_nuova != "":
+		v.add_child(bottone("Mappa: " + ("ridisegnata in 3D (passa all'originale)" if mappa_nuova else "originale (passa a quella ridisegnata in 3D)"), func():
+			_chiudi_popup()
+			_cambia_mappa(), 18))
 	v.add_child(bottone("Inquadra la battaglia", func():
 		_chiudi_popup()
 		_inquadra_scenario(), 18))
