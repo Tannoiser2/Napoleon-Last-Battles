@@ -22,8 +22,11 @@ Risultati: AE attaccanti eliminati, AR attaccanti si ritirano di un esagono, DR 
 [b]Artiglieria[/b]
 L'artiglieria non a contatto può bombardare un esagono a 2 di distanza, da sola o insieme a un attacco, senza subire alcun risultato. Bosco, paese e fattoria intermedi e i lati di cresta bloccano la linea di tiro; nelle fattorie non si tira. A contatto col nemico l'artiglieria combatte come le altre unità.
 
-[b]Regole facoltative (attive per scelta)[/b]
-Armi combinate: fanteria, cavalleria e artiglieria contro lo stesso esagono spostano l'attacco di una colonna a destra. Guardia imperiale: se un attacco della fanteria della Guardia va male (AE, AR o EX) il livello di demoralizzazione francese scende di 20 (nella campagna: tutti i corpi vicini scendono di 7).
+[b]Regole facoltative e varianti (si scelgono nel menu)[/b]
+Armi combinate (15.1): fanteria, cavalleria e artiglieria contro lo stesso esagono spostano l'attacco di una colonna a destra. Guardia imperiale (15.2): se un attacco della fanteria della Guardia va male (AE, AR o EX) il livello francese scende di 20 (nella campagna: i corpi vicini scendono di 7). Le altre (ritirata a cavallo, impeto, capi in combattimento, terreno modificato, effetti combinati, bombardamento prolungato, Vecchia Guardia, fuori comando e senza rifornimento modificati, alba, pioggia) sono spiegate una per una nel menu. Ogni modificatore applicato compare in parole nel pannello di combattimento.
+
+[b]Area di comando (campagna)[/b]
+Il tasto «Comando» in alto colora in oro le zone dei comandanti (5 esagoni), in blu quelle degli ufficiali (3) e cerchia di rosso le unità fuori comando. Toccando un capo si vede la sua zona. I capi demoralizzati o inattivi mostrano il retro della pedina.
 
 [b]Demoralizzazione e vittoria nei quattro Folio[/b]
 Ogni esercito ha un livello di demoralizzazione (e gli Alleati uno di disintegrazione): quando le perdite lo raggiungono, l'esercito non avanza più dopo i combattimenti; le perdite sono indicate in alto. Le condizioni di vittoria di ogni battaglia sono nella sua scheda nel menu.

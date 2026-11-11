@@ -11,7 +11,13 @@ func _init() -> void:
 	for p in range(off, off + n):
 		var t0 := Time.get_ticks_msec()
 		var mo := Motore.new()
-		mo.nuova({"scen": sc, "seed": p * 7919 + 3})
+		var cfg := {"scen": sc, "seed": p * 7919 + 3}
+		if "--tutte" in args:
+			var o := {}
+			for x in Dati.OPZIONI:
+				o[x[0]] = true
+			cfg["opzioni"] = o
+		mo.nuova(cfg)
 		mo.diagnosi = "--diagnosi" in args
 		var ia: Array = [IA.new(mo), IA.new(mo)]
 		if "--fr_vecchia" in args:

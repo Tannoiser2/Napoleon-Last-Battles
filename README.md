@@ -92,9 +92,30 @@ bosco o palude (prima: quando attaccava *da* lì) con arrotondamento unico dei d
 invariato per i corpi demoralizzati; livello francese di Ligny (35); vantaggio della fattoria legato solo alla
 demoralizzazione; niente avanzata per gli attaccanti fuori comando dopo uno scambio; riorganizzazione dopo un
 turno completo; vicinanza dei corpi demoralizzati (22.5A) nel segmento di riorganizzazione; rifornimento alleato
-a ovest. Non realizzati: le regole facoltative 15.3-15.6 e le varianti del capitolo 16; i capi non dimezzano il
-movimento quando danno il comando (10.1C); le uscite della campagna non controllano rifornimento e capi usciti
-(22.4B).
+a ovest; 10.1C (il capo che dà il comando ha metà movimento); uscite della campagna con rifornimento e capi
+usciti (22.4B).
+
+Regole facoltative e varianti, scelte nel menu iniziale («Scegli fra ... regole»), salvate fra una partita e
+l'altra e trasmesse all'avversario online: 15.1 armi combinate, 15.2 Guardia, 15.3 ritirata a cavallo,
+15.4 partenza ritardata francese, 15.5 impeto della cavalleria, 15.6 avanzata con i capi, 16.2 alba,
+16.4 terreno modificato, 16.5 pioggia modificata, 16.7 effetti combinati (al posto di 15.1), 16.9 bombardamento
+prolungato, 16.12 Vecchia Guardia (al posto di 15.2), 16.13 capi in combattimento, 16.15 fuori comando
+modificato, 16.18 senza rifornimento. Le regole dei capi, dell'alba, della pioggia e del rifornimento valgono
+solo nella campagna. Non realizzate: 16.1 pedine sostitutive, 16.3 osservazione, 16.6 movimento nascosto,
+16.8 carica, 16.10 artiglieria pesante, 16.11 guarnigioni, 16.14 quartier generale, 16.16 riorganizzazione
+modificata, 16.17 salmerie (servono pedine e segnalini che il gioco non ha, o la visibilità nascosta).
+
+Pannello di combattimento: in alto le due forze, sotto le unità coinvolte, poi ogni modificatore in parole
+(terreno, ruscelli, dimezzamenti, armi combinate, capi...), infine colonna, «Attacca!» e «Annulla». Nella
+campagna il tasto «Comando» mostra le aree di comando (5 esagoni i comandanti, 3 gli ufficiali) e cerchia di
+rosso le unità fuori comando. Le pedine dei capi si girano sul retro quando l'ufficiale è demoralizzato o il
+comandante inattivo; le unità non si girano in combattimento (in NLB non ci sono perdite di passi: si
+eliminano), mostrano il retro ridotto solo dopo la riorganizzazione o quando lo scenario le schiera ridotte.
+
+Terreno ricontrollato esagono per esagono sulle scansioni: le pedine di schieramento stampate in blu sulla
+mappa di La Belle Alliance erano state lette come paesi (82 esagoni, tolti) e 33 paesi veri (St-Amand, Ligny,
+Fleurus, Tilly, Mellet, Wavre...) erano terreno aperto. La mappa Reborn disegna case anche dove l'originale
+aveva solo le pedine stampate (a sud di La Belle Alliance): conta il terreno dell'originale.
 
 ## Prove
 

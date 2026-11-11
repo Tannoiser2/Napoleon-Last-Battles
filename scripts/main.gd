@@ -88,6 +88,7 @@ var carattere_ia := 1
 var sel_hex := ""
 var sel_unita := ""
 var sel_capo := ""
+var vedi_comando := false     # campagna: mostra le aree di comando di tutti i capi
 var rag := {}
 var hover := ""
 var sel_dif: Array = []
@@ -99,9 +100,9 @@ var vista_alta := false
 var scelta_scen := "bellealliance"
 var scelta_lato := 0
 var scelta_modo := "ia"
-var opz_armi := true
-var opz_guardia := true
+var opz_scelte := {}          # regole opzionali e varianti scelte nel menu (chiave -> bool)
 var opz_opzionali := false
+var menu_regole_aperte := false
 
 # interfaccia
 var lbl_titolo: Label
@@ -238,6 +239,9 @@ func immagine(path: String, w: float, h: float) -> TextureRect:
 	return t
 
 func img_pedina(id: String, ridotta := false) -> String:
+	# i capi mostrano il retro quando sono demoralizzati o inattivi
+	if id.begins_with("c") and m != null and m.s["capi"].has(id):
+		ridotta = m.capo_girato(id)
 	var cartella := "res://assets/pedine2015/" if pedine_2015 else "res://assets/pedine/"
 	if pedine_2015 and not ResourceLoader.exists(cartella + id + ".webp"):
 		cartella = "res://assets/pedine/"
@@ -322,13 +326,18 @@ func _carica_opzioni() -> void:
 		if d is Dictionary:
 			mappa_nuova = bool(d.get("mappa_nuova", true))
 			pedine_2015 = bool(d.get("pedine_2015", false))
+			if d.get("regole") is Dictionary:
+				opz_scelte = d["regole"]
+	for x in Dati.OPZIONI:
+		if not opz_scelte.has(x[0]):
+			opz_scelte[x[0]] = x[0] in Dati.OPZIONI_ATTIVE
 	if Mappa.tasselli_nuova.is_empty():
 		mappa_nuova = false
 
 func _salva_opzioni() -> void:
 	var f := FileAccess.open(SALVA_OPZIONI, FileAccess.WRITE)
 	if f:
-		f.store_string(JSON.stringify({"mappa_nuova": mappa_nuova, "pedine_2015": pedine_2015}))
+		f.store_string(JSON.stringify({"mappa_nuova": mappa_nuova, "pedine_2015": pedine_2015, "regole": opz_scelte}))
 
 func _cambia_mappa() -> void:
 	mappa_nuova = not mappa_nuova
@@ -948,6 +957,7 @@ func _aggiorna_evidenze() -> void:
 		var a := _anello(C_ORO)
 		a.position = _v3(sel_hex)
 		nodo_evid.add_child(a)
+	_evidenzia_comando()
 	if _fase_mia("combattimento"):
 		var ob := m.obblighi()
 		for h in ob["nemici"]:
@@ -1000,6 +1010,43 @@ func _aggiorna_evidenze() -> void:
 		var a := _anello(Color(1, 1, 1, 1), 0.42)
 		a.position = _v3(hover)
 		nodo_evid.add_child(a)
+
+## Aree di comando (campagna): 5 esagoni per i comandanti, 3 per gli ufficiali. Il capo selezionato
+## (o quelli nell'esagono scelto) sempre; con il tasto Comando tutti i capi dello schieramento di turno,
+## e un anello rosso sulle unità fuori comando.
+func _evidenzia_comando() -> void:
+	if m == null or not m.campagna():
+		return
+	var capi := []
+	if sel_capo != "":
+		capi.append(sel_capo)
+	elif sel_hex != "" and sel_unita == "":
+		capi = m.capi_in(sel_hex)
+	var lato := int(m.s["lato"])
+	if vedi_comando:
+		for c in m.s["capi"]:
+			if m.lato_di(c) == lato and m.s["capi"][c]["st"] == "mappa" and not capi.has(c):
+				capi.append(c)
+	var zone := {}     # esagono -> 2 comandante, 1 ufficiale
+	for c in capi:
+		if m.s["capi"][c]["st"] != "mappa":
+			continue
+		var cmd := int(m.catalogo["capi"][c]["cap"]) > 0
+		if cmd and m.s["capi"][c].get("inattivo", false):
+			continue
+		var rg: Dictionary = m._raggio_comando(m.s["capi"][c]["h"], m.lato_di(c), 5 if cmd else 3)
+		for h in rg:
+			zone[h] = maxi(int(zone.get(h, 0)), 2 if cmd else 1)
+	for h in zone:
+		var e := _esagono_mesh(Color(1.0, 0.8, 0.15, 0.34) if zone[h] == 2 else Color(0.3, 0.55, 0.95, 0.24))
+		e.position = _v3(h, 0.005)
+		nodo_evid.add_child(e)
+	if vedi_comando and not m.notte():
+		for id in m.s["unita"]:
+			if m.lato_di(id) == lato and m.s["unita"][id]["st"] == "mappa" and not m.in_comando(id):
+				var a := _anello(Color(0.9, 0.1, 0.05), 0.4)
+				a.position = _v3(m.s["unita"][id]["h"])
+				nodo_evid.add_child(a)
 
 # ---------- input sulla mappa (mouse e tocco: un dito sposta, due dita pizzicano e ruotano)
 
@@ -1191,18 +1238,20 @@ func mostra_menu() -> void:
 		get_viewport().size_changed.connect(_menu_ridimensiona)
 	var vp := get_viewport().get_visible_rect().size
 	var margine := 24.0
-	var gap := 12.0
-	# schede alte quanto lo schermo permette, lasciando a destra almeno 520 px per le opzioni;
-	# fra le due righe uno spazio più largo che ospita il medaglione della campagna
-	var asp := 720.0 / 660.0
-	var hc := (vp.y - 2 * margine) / (2.0 + 0.52 * 0.42)
+	# la tavola (assets/ui, ritagliata da tools/menu/ritaglia.py): quattro schede quadrate accostate
+	# e il medaglione della campagna al centro; lascia a destra almeno 520 px per le opzioni
+	const R_GAP := 13.0 / 611.0
+	const R_MED := 524.0 / 611.0
+	var asp := 1.0
+	var hc := (vp.y - 2 * margine) / (2.0 + R_GAP)
 	var wc := hc * asp
-	var max_w := (vp.x - 2 * margine - 2 * gap - 520.0) / 2.0
+	var max_w := (vp.x - 3 * margine - 520.0) / (2.0 + R_GAP)
 	if wc > max_w:
 		wc = max_w
 		hc = wc / asp
-	var d := hc * 0.52
-	var gv := d * 0.42
+	var gap := wc * R_GAP
+	var d := wc * R_MED
+	var gv := gap
 	var tw := 2 * wc + gap
 	var th := 2 * hc + gv
 	var tav := Control.new()
@@ -1231,7 +1280,7 @@ func mostra_menu() -> void:
 		sb.bg_color = Color(0, 0, 0, 0)
 		sb.border_color = C_ORO
 		sb.set_border_width_all(6)
-		sb.set_corner_radius_all(18)
+		sb.set_corner_radius_all(8)
 		cor.add_theme_stylebox_override("panel", sb)
 		cor.position = r.position - Vector2(5, 5)
 		cor.size = r.size + Vector2(10, 10)
@@ -1272,7 +1321,7 @@ func mostra_menu() -> void:
 	# a destra: informazioni, opzioni e comandi
 	var pn := pannello()
 	pn.add_theme_stylebox_override("panel", stile(C_CARTA, C_BLU, 4, 6))
-	pn.position = Vector2(margine + tw + 2 * gap, margine)
+	pn.position = Vector2(margine + tw + margine, margine)
 	tav.position.x = margine
 	pn.size = Vector2(vp.x - pn.position.x - margine, vp.y - 2 * margine)
 	schermo.add_child(pn)
@@ -1427,25 +1476,47 @@ func _menu_scheda() -> void:
 		_menu_gruppo("Avversario (IA)", [["prudente", 0], ["normale", 1], ["aggressivo", 2]],
 			func(o): return carattere_ia == o[1],
 			func(o): carattere_ia = o[1])
-	v.add_child(riga_lbl("Regole opzionali", F_GRASSETTO, 19, C_BLU))
-	var opz := [["Armi combinate: +1 colonna se attaccano insieme fanteria, cavalleria e artiglieria", "armi"]]
-	if _ha_guardia(k):
-		opz.append(["Guardia imperiale: il suo respingimento demoralizza i Francesi", "guardia"])
-	if _ha_opzionali(k):
-		opz.append(["Rinforzi francesi opzionali dello scenario", "opz"])
-	for o in opz:
+	v.add_child(riga_lbl("Regole opzionali (15) e varianti (16)", F_GRASSETTO, 19, C_BLU))
+	var attive := []
+	var disponibili := 0
+	for x in Dati.OPZIONI:
+		if (x[3] == "campagna" and k != "campagna") or (x[3] == "guardia" and not _ha_guardia(k)):
+			continue
+		disponibili += 1
+		if opz_scelte.get(x[0], false):
+			attive.append(String(x[1]).get_slice(" ", 0))
+	var bt := bottone(("Nascondi l'elenco" if menu_regole_aperte else "Scegli fra %d regole" % disponibili) + "  ·  attive: " + (", ".join(attive) if not attive.is_empty() else "nessuna"), func():
+		menu_regole_aperte = not menu_regole_aperte
+		_menu_scheda(), 17)
+	bt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(bt)
+	for x in (Dati.OPZIONI if menu_regole_aperte else []):
+		var kk: String = x[0]
+		match x[3]:
+			"campagna":
+				if k != "campagna":
+					continue
+			"guardia":
+				if not _ha_guardia(k):
+					continue
 		var cb := CheckBox.new()
-		cb.text = o[0]
-		cb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		cb.text = x[1]
 		cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		cb.add_theme_font_size_override("font_size", 17)
-		match o[1]:
-			"armi": cb.button_pressed = opz_armi
-			"guardia": cb.button_pressed = opz_guardia
-			"opz": cb.button_pressed = opz_opzionali
-		var kk: String = o[1]
+		cb.button_pressed = bool(opz_scelte.get(kk, false))
 		cb.toggled.connect(func(on): _opzione(kk, on))
 		v.add_child(cb)
+		var sp := etichetta(x[2], F_CORSIVO, 15, C_SPENTO)
+		sp.custom_minimum_size.x = 300
+		v.add_child(sp)
+	if _ha_opzionali(k):
+		var cb2 := CheckBox.new()
+		cb2.text = "Rinforzi francesi opzionali dello scenario"
+		cb2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cb2.add_theme_font_size_override("font_size", 17)
+		cb2.button_pressed = opz_opzionali
+		cb2.toggled.connect(func(on): opz_opzionali = on)
+		v.add_child(cb2)
 	var rp := HFlowContainer.new()
 	rp.add_theme_constant_override("h_separation", 8)
 	rp.add_theme_constant_override("v_separation", 8)
@@ -1484,13 +1555,16 @@ func _menu_nuova() -> void:
 	mostra_menu()
 
 func _opzione(k: String, on: bool) -> void:
-	match k:
-		"armi":
-			opz_armi = on
-		"guardia":
-			opz_guardia = on
-		"opz":
-			opz_opzionali = on
+	opz_scelte[k] = on
+	# le varianti che sostituiscono una regola opzionale la escludono
+	var esclusi := {"effetti_comb": "armi_combinate", "armi_combinate": "effetti_comb", "garde_vieille": "guardia", "guardia": "garde_vieille"}
+	var rifai := false
+	if on and esclusi.has(k) and opz_scelte.get(esclusi[k], false):
+		opz_scelte[esclusi[k]] = false
+		rifai = true
+	_salva_opzioni()
+	if rifai:
+		_menu_scheda.call_deferred()
 
 func _descrizione_scenario(k: String) -> String:
 	match k:
@@ -1522,7 +1596,7 @@ func _avvia_locale() -> void:
 	_salva(true)
 
 func _cfg_partita(seed: int) -> Dictionary:
-	return {"scen": scelta_scen, "seed": seed, "armi_combinate": opz_armi, "guardia": opz_guardia, "opzionali": opz_opzionali}
+	return {"scen": scelta_scen, "seed": seed, "opzioni": opz_scelte.duplicate(), "opzionali": opz_opzionali}
 
 func _prepara_ia() -> void:
 	ia = [IA.new(m), IA.new(m)]
@@ -1788,6 +1862,13 @@ func _costruisci_hud() -> void:
 	hb.add_child(lbl_fase)
 	lbl_pv = riga_lbl("", F_TESTO, 19, C_ORO)
 	hb.add_child(lbl_pv)
+	if m.campagna():
+		var bc := bottone("Comando", func():
+			vedi_comando = not vedi_comando
+			_aggiorna_evidenze(), 16)
+		bc.toggle_mode = true
+		bc.button_pressed = vedi_comando
+		hb.add_child(bc)
 	for b in [["Registro", _mostra_diario], ["Plance", _plance_popup], ["Tabelle", _tabelle_popup], ["Vista", _cambia_vista], ["Regole", _regole_popup], ["Menu", _menu_partita]]:
 		var bt := bottone(b[0], b[1], 16)
 		hb.add_child(bt)
@@ -2154,12 +2235,25 @@ func _aggiorna_pannello() -> void:
 			_pannello_combattimento(lato)
 		"avanza":
 			lbl_stato.text = "Il nemico ha lasciato l'esagono: un'unità vincitrice può avanzare. Tocca sulla mappa un'unità con l'anello d'oro per farla avanzare, oppure l'esagono vuoto (in blu) per restare dove sei."
+			if r.get("obbligata", false):
+				lbl_stato.text = "Avanzata obbligatoria (%s): tocca sulla mappa un'unità con l'anello d'oro." % ("il capo guida la sua pila" if r.has("capo") and r.get("tutta_pila", false) else "impeto della cavalleria")
+			elif r.get("seconda", false):
+				lbl_stato.text = "%s può avanzare anche con la seconda unità della pila: toccala, oppure tocca l'esagono vuoto per fermarti." % m.nome(r["capo"])
 			var viste := {}
 			for c in r["cand"]:
 				if not viste.has(c[0]):
 					viste[c[0]] = true
 					pannello_info.add_child(_riga_unita(c[0]))
 			_info_esagono(sel_hex)
+		"ritirata_cav":
+			lbl_stato.text = "%s: prima del combattimento la cavalleria e l'artiglieria a cavallo a contatto (non con cavalleria nemica) possono ritirarsi di un esagono (15.3)." % Dati.LATI[lato]
+			for id in r["cand"]:
+				var x: String = id
+				var b := bottone("Ritira %s (%s)" % [m.nome(x), Mappa.sigla(m.s["unita"][x]["h"])], func(): _invia({"a": "ritira_cav", "u": x}), 17)
+				box_azioni.add_child(b)
+			box_azioni.add_child(bottone("Nessuna ritirata: si combatte", func(): _invia({"a": "fine"}), 19))
+			for id in r["cand"]:
+				pannello_info.add_child(_riga_unita(id))
 
 func _info_esagono(h: String) -> void:
 	if h == "" or m == null:
@@ -2249,6 +2343,15 @@ func _pannello_movimento(lato: int) -> void:
 					var hh: String = h
 					box_azioni.add_child(bottone("%s esce dalla mappa da %s" % [m.nome(sel_unita), Mappa.sigla(h)], func(): _invia({"a": "esci", "u": sel_unita, "h": hh}), 17))
 					break
+	if sel_capo != "" and m.campagna() and lato == Motore.FR and rag.has("0605") and not m.zoc("0605", Motore.AL):
+		var cc := sel_capo
+		var bx := bottone("%s esce verso Bruxelles da %s" % [m.nome(cc), Mappa.sigla("0605")], func():
+			sel_capo = ""
+			rag = {}
+			_invia({"a": "esci_capo", "c": cc}), 17)
+		bx.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box_azioni.add_child(bx)
+		box_azioni.add_child(etichetta("Le unità uscite contano solo se escono anche i loro ufficiali, e abbastanza comandanti per dar loro il comando.", F_CORSIVO, 15, C_SPENTO))
 	if sel_hex == "":
 		_info_esagono("")
 		return
@@ -2420,11 +2523,23 @@ func _pannello_combattimento(lato: int) -> void:
 	if sel_col >= 0:
 		d["col"] = sel_col
 	var v := m.valuta_attacco(d)
-	pannello_info.add_child(etichetta("Bersaglio: " + ", ".join(sel_dif.map(func(h): return Mappa.sigla(h))), F_GRASSETTO, 19, C_ROSSO))
+	var pi := pannello_info
+	# 1. le due forze, grandi
+	var fz := HBoxContainer.new()
+	fz.alignment = BoxContainer.ALIGNMENT_CENTER
+	fz.add_theme_constant_override("separation", 18)
+	pi.add_child(fz)
+	fz.add_child(_numerone(_num(v["att"]) if v["ok"] else "-", "attacco", C_BLU))
+	var vs := riga_lbl("contro", F_CORSIVO, 20, C_SPENTO)
+	vs.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	fz.add_child(vs)
+	fz.add_child(_numerone(_num(v["dif"]) if v["ok"] else "-", "difesa", C_ROSSO))
+	# 2. le unità coinvolte: difensori, poi attaccanti da togliere o aggiungere
 	for h in sel_dif:
+		pi.add_child(etichetta("Difende %s (%s)" % [Mappa.sigla(h), Dati.NOMI_TERRENO.get(Mappa.terreno(h), "")], F_GRASSETTO, 17, C_ROSSO))
 		for id in m.unita_in(h, 1 - lato):
-			pannello_info.add_child(_riga_unita(id))
-	pannello_info.add_child(etichetta("Attaccanti (tocca per togliere o aggiungere; anche sulla mappa):", F_GRASSETTO, 17, C_BLU))
+			pi.add_child(_riga_unita(id))
+	pi.add_child(etichetta("Attaccano (tocca per togliere o aggiungere, anche sulla mappa)", F_GRASSETTO, 17, C_BLU))
 	var candidati := sel_att.keys()
 	for id in m.s["unita"]:
 		var u: Dictionary = m.s["unita"][id]
@@ -2435,7 +2550,7 @@ func _pannello_combattimento(lato: int) -> void:
 					break
 	for id in candidati:
 		var x: String = id
-		pannello_info.add_child(_riga_unita(id, func():
+		pi.add_child(_riga_unita(id, func():
 			if sel_att.has(x):
 				sel_att.erase(x)
 			else:
@@ -2443,42 +2558,77 @@ func _pannello_combattimento(lato: int) -> void:
 			sel_col = -1
 			_aggiorna_evidenze()
 			_aggiorna_pannello()))
+	# 3. i modificatori
+	pi.add_child(HSeparator.new())
+	pi.add_child(etichetta("Modificatori", F_GRASSETTO, 17, C_BLU))
+	if not v["ok"]:
+		pi.add_child(etichetta("Non si può attaccare: %s." % v["motivo"], F_TESTO, 17, C_ROSSO))
+	else:
+		var note: Array = v.get("note", [])
+		if note.is_empty():
+			pi.add_child(etichetta("Nessuno: forze stampate, terreno aperto.", F_CORSIVO, 16, C_SPENTO))
+		for n in note:
+			pi.add_child(etichetta("- " + str(n), F_TESTO, 16))
+	# 4. colonna, Attacca e Annulla
+	pi.add_child(HSeparator.new())
 	if v["ok"]:
-		var t := "Forza %s contro %s: colonna %s" % [_num(v["att"]), _num(v["dif"]), Dati.COLONNE[int(v["col"])]]
-		if v["armi"] and m.s["opzioni"].get("armi_combinate", true):
-			t += " (armi combinate)"
-		if v["castello"]:
-			t += " · fattoria: massimo 4-1"
-		box_azioni.add_child(etichetta(t, F_GRASSETTO, 19, C_BLU))
-		var rr := HBoxContainer.new()
-		rr.add_child(bottone("Attacca!", func():
-			var dd := {"a": "attacco", "dif": sel_dif.duplicate(), "att": sel_att.keys()}
-			if sel_col >= 0:
-				dd["col"] = sel_col
-			_annulla_selezione()
-			_invia(dd), 22))
+		var base := Dati.colonna(float(v["att"]), float(v["dif"]))
+		var rc := HBoxContainer.new()
+		rc.add_theme_constant_override("separation", 10)
+		pi.add_child(rc)
+		var tc := "Colonna %s" % Dati.COLONNE[int(v["col"])]
+		if int(v["col_max"]) != base:
+			tc += "  (rapporto %s, poi i modificatori)" % Dati.COLONNE[base]
+		var lc := riga_lbl(tc, F_TITOLO, 24, C_INCHIOSTRO)
+		lc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		rc.add_child(lc)
 		if int(v["col_max"]) > 0:
 			var ob2 := OptionButton.new()
 			for c in int(v["col_max"]) + 1:
 				ob2.add_item("a " + Dati.COLONNE[c])
 			ob2.selected = int(v["col"])
+			ob2.tooltip_text = "Si può attaccare a una colonna più bassa"
 			ob2.item_selected.connect(func(i):
 				sel_col = i
 				_aggiorna_pannello())
-			rr.add_child(riga_lbl("  colonna ", F_TESTO, 16))
-			rr.add_child(ob2)
-		box_azioni.add_child(rr)
-	else:
-		box_azioni.add_child(etichetta("Non si può: %s." % v["motivo"], F_TESTO, 17, C_ROSSO))
-	box_azioni.add_child(bottone("Annulla la scelta", func():
+			rc.add_child(ob2)
+	var rb := HBoxContainer.new()
+	rb.add_theme_constant_override("separation", 10)
+	pi.add_child(rb)
+	if v["ok"]:
+		var ba := bottone("Attacca!", func():
+			var dd := {"a": "attacco", "dif": sel_dif.duplicate(), "att": sel_att.keys()}
+			if sel_col >= 0:
+				dd["col"] = sel_col
+			_annulla_selezione()
+			_invia(dd), 24)
+		ba.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		rb.add_child(ba)
+	var bn := bottone("Annulla", func():
 		_annulla_selezione()
-		_aggiorna_pannello(), 16))
+		_aggiorna_pannello(), 20)
+	bn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rb.add_child(bn)
+
+## Un numero grande con la didascalia sotto (forze nel pannello di combattimento)
+func _numerone(n: String, did: String, col: Color) -> Control:
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", -6)
+	var l := riga_lbl(n, F_TITOLO, 64, col)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.custom_minimum_size.x = 120
+	vb.add_child(l)
+	var d := riga_lbl(did, F_GRASSETTO, 16, C_SPENTO)
+	d.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vb.add_child(d)
+	return vb
 
 # ---------- rapporti di battaglia
 
 # ---------- battaglia: frecce sulla mappa e tabella che sale dal basso
 
 const ALTEZZA_BATT := 404.0
+var batt_alt := ALTEZZA_BATT
 
 func _prossima_battaglia() -> void:
 	if coda_rapporti.is_empty() or batt_aperta:
@@ -2596,6 +2746,13 @@ func _costruisci_pannello_battaglia() -> void:
 	r1.add_child(riga_lbl("%s contro %s  ·  colonna %s" % [_num(rep["fa"]), _num(rep["fd"]), rep["col"]], F_GRASSETTO, 20, C_INCHIOSTRO))
 	batt_dado = Dado.new(1, false, 40.0)
 	r1.add_child(batt_dado)
+	# i modificatori, in parole
+	batt_alt = ALTEZZA_BATT
+	var note: Array = rep.get("note", [])
+	if not note.is_empty():
+		var ln := etichetta("Modificatori: " + "; ".join(note) + ".", F_CORSIVO, 16, C_INCHIOSTRO)
+		v.add_child(ln)
+		batt_alt += 24.0 * ceilf(float(("Modificatori: " + "; ".join(note)).length()) / 150.0)
 	# la tabella
 	var g := GridContainer.new()
 	g.columns = 11
@@ -2638,7 +2795,7 @@ func _costruisci_pannello_battaglia() -> void:
 	batt_bottoni.add_child(bottone("Salta", func(): _finale_battaglia(), 17))
 	# entra dal basso
 	var tw := create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_property(pn, "offset_top", -ALTEZZA_BATT, 0.4)
+	tw.tween_property(pn, "offset_top", -batt_alt, 0.4)
 	tw.parallel().tween_property(pn, "offset_bottom", -8.0, 0.4)
 
 func _evidenzia_tabella(col: int, riga: int, incrocio := false) -> void:
@@ -2723,7 +2880,8 @@ func _bottoni_battaglia() -> void:
 		c.queue_free()
 	if coda_rapporti.is_empty() and _fase_mia("avanza"):
 		# c'è una scelta da fare: si tocca la mappa, nessun tasto
-		batt_lbl_dett.text += ("  " if batt_lbl_dett.text.strip_edges() != "" else "") + "Avanzata: tocca un'unità illuminata per farla avanzare, oppure l'esagono vuoto per restare dove sei."
+		var rqa := m.richiesta()
+		batt_lbl_dett.text += ("  " if batt_lbl_dett.text.strip_edges() != "" else "") + ("Avanzata obbligatoria: tocca un'unità illuminata." if rqa.get("obbligata", false) else "Avanzata: tocca un'unità illuminata per farla avanzare, oppure l'esagono vuoto per restare dove sei.")
 		_aggiorna_pannello()
 		return
 	var la := int(batt_rep["lato"])
@@ -2752,7 +2910,7 @@ func _chiudi_battaglia(subito := false) -> void:
 		else:
 			var tw := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 			tw.tween_property(pn, "offset_top", 20.0, 0.25)
-			tw.parallel().tween_property(pn, "offset_bottom", ALTEZZA_BATT + 20.0, 0.25)
+			tw.parallel().tween_property(pn, "offset_bottom", batt_alt + 20.0, 0.25)
 			tw.tween_callback(pn.queue_free)
 	if m != null:
 		_aggiorna_tutto()
@@ -2773,6 +2931,9 @@ func _clic_avanza(h: String) -> void:
 	for c in rq["cand"]:
 		vuoti[c[1]] = true
 	if vuoti.has(h):
+		if rq.get("obbligata", false):
+			_notifica("Questa avanzata è obbligatoria: tocca un'unità illuminata.")
+			return
 		sel_avanza = ""
 		if batt_aperta:
 			_chiudi_battaglia()

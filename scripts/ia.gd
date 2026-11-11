@@ -33,6 +33,27 @@ func decidi(rq: Dictionary) -> Dictionary:
 			return _combattimento(int(rq["lato"]))
 		"avanza":
 			return _avanza(rq)
+		"ritirata_cav":
+			return _ritirata_cav(rq)
+	return {"a": "fine"}
+
+## 15.3: la cavalleria minacciata da forze molto superiori si sottrae al combattimento
+func _ritirata_cav(rq: Dictionary) -> Dictionary:
+	var lato := int(rq["lato"])
+	for id in rq["cand"]:
+		var h: String = m.s["unita"][id]["h"]
+		if h in obiettivi(lato) or Mappa.terreno(h) in ["citta", "castello"]:
+			continue
+		var nem := 0
+		for v in Mappa.vicini(h):
+			for e in m.unita_in(v, 1 - lato):
+				nem += m.forza(e)
+		var mio := 0
+		for x in m.unita_in(h, lato):
+			mio += m.forza(x)
+		var soglia := 3.0 if aggressivo(lato) else 2.0
+		if float(nem) >= soglia * float(maxi(mio, 1)):
+			return {"a": "ritira_cav", "u": id}
 	return {"a": "fine"}
 
 func _k(f: String) -> String:
@@ -223,13 +244,58 @@ func _movimento(lato: int) -> Dictionary:
 						return {"a": "muovi", "u": id, "h": x}
 	return {"a": "fine"}
 
+## 22.4B: le unità uscite contano solo se escono anche i loro ufficiali e abbastanza comandanti
+func _uscite_capi(piano_usc: Array) -> Array:
+	var out := []
+	var uscenti := {}
+	for mv in piano_usc:
+		if mv["a"] == "esci":
+			uscenti[mv["u"]] = true
+	var capacita := 0
+	var uff_fuori := 0
+	for c in m.s["capi"]:
+		if m.lato_di(c) == Motore.FR and m.s["capi"][c]["st"] == "uscita":
+			if int(m.catalogo["capi"][c]["cap"]) > 0:
+				capacita += int(m.catalogo["capi"][c]["cap"])
+			else:
+				uff_fuori += 1
+	var da_far_uscire := []
+	for c in m.s["capi"]:
+		var k: Dictionary = m.catalogo["capi"][c]
+		if m.lato_di(c) != Motore.FR or m.s["capi"][c]["st"] != "mappa" or int(k["cap"]) > 0:
+			continue
+		var usciti := 0
+		var restano := 0
+		for id in m.s["unita"]:
+			if m.lato_di(id) != Motore.FR or m.ufficiale_di(id) != c:
+				continue
+			var st: String = m.s["unita"][id]["st"]
+			if st == "uscita" or uscenti.has(id):
+				usciti += 1
+			elif st == "mappa" or st == "arrivo":
+				restano += 1
+		if usciti > 0 and restano == 0 and m.raggiungibili(c).has("0605"):
+			da_far_uscire.append(c)
+	for c in da_far_uscire:
+		out.append({"a": "esci_capo", "c": c})
+		uff_fuori += 1
+	if uff_fuori > capacita:
+		for c in m.s["capi"]:
+			var k: Dictionary = m.catalogo["capi"][c]
+			if m.lato_di(c) == Motore.FR and m.s["capi"][c]["st"] == "mappa" and int(k["cap"]) > 0 and k["n"] != "Napoleone" and m.raggiungibili(c).has("0605"):
+				out.append({"a": "esci_capo", "c": c})
+				capacita += int(k["cap"])
+				if capacita >= uff_fuori:
+					break
+	return out
+
 func _valida_mossa(d: Dictionary) -> bool:
 	match d["a"]:
 		"muovi":
 			return m.puo_muovere(d["u"]) and d["h"] != m.s["unita"][d["u"]]["h"] and m.raggiungibili(d["u"]).has(d["h"]) and m.unita_in(d["h"], m.lato_di(d["u"])).size() < _capienza(d["h"])
 		"entra":
 			return d["u"] in m.arrivi_disponibili(m.lato_di(d["u"])) and m.raggiungibili_arrivo(d["u"]).has(d["h"]) and m.unita_in(d["h"], m.lato_di(d["u"])).size() < _capienza(d["h"])
-		"esci":
+		"esci", "esci_capo":
 			return true
 		"capo":
 			return m.raggiungibili(d["c"]).has(d["h"])
@@ -320,6 +386,8 @@ func _pianifica_movimento(lato: int) -> Array:
 			out.append({"a": "esci", "u": id, "h": h_usc})
 			_occ_piano[mobili[id]["da"]] = _occ_piano.get(mobili[id]["da"], 1) - 1
 			mobili.erase(id)
+	if m.campagna() and lato == Motore.FR:
+		out += _uscite_capi(out)
 	# 1. attacchi concentrati
 	var assegnate := {}
 	for att in _pianifica_attacchi(lato, mobili, nem):
@@ -1108,6 +1176,6 @@ func _avanza(rq: Dictionary) -> Dictionary:
 		if v > bv:
 			bv = v
 			best = c
-	if bv > 0 and not best.is_empty():
+	if (bv > 0 or rq.get("obbligata", false)) and not best.is_empty():
 		return {"a": "avanza", "u": best[0], "h": best[1]}
 	return {"a": "avanza", "u": ""}

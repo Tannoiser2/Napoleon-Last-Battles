@@ -32,6 +32,9 @@ func _run():
 		main.pedine_2015 = true
 	main.scelta_lato = 1 if modo == "attacco_ia" else 0
 	main._avvia_locale()
+	if "--comando" in OS.get_cmdline_user_args():
+		main.vedi_comando = true
+		main._aggiorna_evidenze()
 	if modo == "attacco_ia":
 		# l'IA francese attacca: si aspetta il primo pannello di battaglia e il suo esito
 		main.velocita = 20.0

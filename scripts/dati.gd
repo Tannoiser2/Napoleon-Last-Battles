@@ -35,6 +35,27 @@ const NOMI_TERRENO := {
 	"aperto": "terreno aperto", "bosco": "bosco", "palude": "palude", "citta": "paese",
 	"castello": "fattoria fortificata", "lago": "lago",
 }
+## Regole facoltative (15.x) e varianti (16.x) della 4ª edizione: chiave, titolo, spiegazione, dove valgono
+## ("tutti", "campagna" = solo dove ci sono i capi, "guardia" = dove c'è la Guardia)
+const OPZIONI := [
+	["armi_combinate", "15.1 Armi combinate", "Fanteria, cavalleria e artiglieria contro lo stesso esagono: +1 colonna.", "tutti"],
+	["guardia", "15.2 Guardia imperiale", "Se un attacco della fanteria della Guardia fallisce (AE, AR, EX) il morale francese scende di 20 (nella campagna i corpi vicini di 7).", "guardia"],
+	["ritirata_cav", "15.3 Ritirata a cavallo", "All'inizio di ogni fase di combattimento la cavalleria e l'artiglieria a cavallo a contatto, se non toccano cavalleria nemica, possono ritirarsi di un esagono.", "tutti"],
+	["partenza", "15.4 Partenza ritardata francese", "Alle 6 di ogni giorno i comandanti francesi sono inattivi: non muovono né comandano finché un 1 sul dado, un comandante attivo o un nemico vicino non li sveglia.", "campagna"],
+	["impeto", "15.5 Impeto della cavalleria", "Quando la cavalleria può avanzare si tira un dado: 1-2 si sceglie, 3-4 nessuno avanza, 5-6 una cavalleria deve avanzare.", "tutti"],
+	["avanzata_capi", "15.6 Avanzata con i capi", "Un capo in un esagono con due unità vincitrici può avanzare con entrambe.", "campagna"],
+	["alba", "16.2 Alba", "Il turno delle 6 di ogni giorno è di giorno (si combatte).", "campagna"],
+	["terreno_mod", "16.4 Terreno modificato", "Il terreno colpisce chi attacca: dimezzato chi attacca un paese, l'artiglieria contro il bosco, chi attacca attraverso ruscelli e ponti; nei paesi solo la cavalleria difende dimezzata; i ponti bloccano le zone di controllo; strade e sentieri non portano dentro zone nemiche né in esagoni amici.", "tutti"],
+	["pioggia_mod", "16.5 Pioggia modificata", "Con la pioggia si combatte: movimento a costo doppio (almeno un esagono), attacchi a metà forza, artiglieria solo insieme a un attacco.", "campagna"],
+	["effetti_comb", "16.7 Effetti combinati", "Al posto di 15.1: contro fanteria in terreno aperto le armi combinate raddoppiano o triplicano la forza di una o due armi (sceglie il difensore).", "tutti"],
+	["bomb_prol", "16.9 Bombardamento prolungato", "L'artiglieria che non ha mosso e bombarda da sola raddoppia la forza.", "tutti"],
+	["garde_vieille", "16.12 La Vecchia Guardia", "Al posto di 15.2: se un attacco della Vecchia Guardia finisce in AR o AE, ogni fanteria di linea francese entro 10 esagoni tira un dado e con 1-3 fugge di tre esagoni (morale -1 per ognuna).", "guardia"],
+	["bonus_capi", "16.13 Capi in combattimento", "Un comandante attivo o un ufficiale con la sua pila sposta il combattimento di due colonne a suo favore; se vince avanza con la pila; con un 6 cade.", "campagna"],
+	["fc_mod", "16.15 Fuori comando modificato", "Al posto di 11.3: chi è fuori comando paga 2 per l'aperto ma entra nelle zone nemiche e attacca; per lui DR non ha effetto, e in difesa AE e AR non hanno effetto; non avanza.", "campagna"],
+	["oos_mod", "16.18 Senza rifornimento", "Al posto dell'eliminazione: le unità senza rifornimento muovono quanto un dado e prima di combattere tirano (1-2 si ritirano, 3-4 metà forza, 5-6 normali).", "campagna"],
+]
+const OPZIONI_ATTIVE := ["armi_combinate", "guardia"]
+
 ## Livelli di demoralizzazione dei corpi (campagna)
 const DEM_CORPI := {
 	"FR": {"Gd": 20, "I": 15, "II": 19, "III": 13, "IV": 12, "VI": 8, "IC": 3, "IIC": 4, "IIIC": 4, "IVC": 4},

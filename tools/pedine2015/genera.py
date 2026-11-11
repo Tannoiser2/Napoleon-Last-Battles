@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Pedine dell'edizione 2015 (Decision Games): ritaglia fronte e retro dai fogli e salva
-assets/pedine2015/<id>.webp e <id>r.webp (retro = forza ridotta).
+assets/pedine2015/<id>.webp e <id>r.webp (retro = forza ridotta; per i capi: demoralizzato o inattivo).
 Uso: genera.py CARTELLA_FOGLI assets/pedine2015
 I fogli: front1.png back1.png front2.png back2.png; celle.json ha la griglia di ogni foglio."""
 import json, sys, os
@@ -28,7 +28,7 @@ for l in open(f'{QUI}/abbinamenti.txt'):
         continue
     id_, f, m, r, k = l[0], l[1], int(l[2]), int(l[3]), int(l[4])
     taglia(f, m, r, k).save(f'{OUT}/{id_}.webp', quality=90)
-    if id_.startswith('u'):
+    if id_.startswith('u') or id_.startswith('c'):
         taglia(RETRO[f], 1 - m, r, 9 - k).save(f'{OUT}/{id_}r.webp', quality=90)
     n += 1
 print('pedine', n)

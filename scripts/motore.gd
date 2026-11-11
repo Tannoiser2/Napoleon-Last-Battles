@@ -43,7 +43,7 @@ func nuova(cfg: Dictionary) -> void:
 		"perdite": {"FR": 0, "PR": 0, "AA": 0}, "perdite_corpo": {}, "pv": [0, 0],
 		"occup": {}, "dem": {}, "dis": {}, "mod": {}, "uscite": {"FR": 0, "PR": 0}, "pv_uscita": 0,
 		"entrate": {}, "comando": {}, "contatto_pr": false, "guardia": 0, "opzionali": bool(cfg.get("opzionali", false)),
-		"opzioni": {"armi_combinate": bool(cfg.get("armi_combinate", true)), "guardia": bool(cfg.get("guardia", true))},
+		"opzioni": _opzioni_da(cfg),
 		"ultima_battaglia": {},
 	}
 	for e in scen["unita"]:
@@ -72,6 +72,29 @@ func nuova(cfg: Dictionary) -> void:
 	_ricalcola()
 	_log("[b]%s[/b] — %s, %s." % [scen["titolo"], scen["sotto"], scen["data"]])
 	_inizio_turno_giocatore()
+
+static func _opzioni_da(cfg: Dictionary) -> Dictionary:
+	var o := {}
+	var date: Dictionary = cfg.get("opzioni", {})
+	for x in Dati.OPZIONI:
+		var k: String = x[0]
+		o[k] = bool(date.get(k, cfg.get(k, k in Dati.OPZIONI_ATTIVE)))
+	return o
+
+## Regola facoltativa attiva in questa partita (quelle dei capi solo nella campagna)
+func opz(k: String) -> bool:
+	if not bool(s["opzioni"].get(k, false)):
+		return false
+	match k:
+		"partenza", "avanzata_capi", "alba", "pioggia_mod", "bonus_capi", "fc_mod", "oos_mod":
+			return campagna()
+		"effetti_comb":
+			return true
+		"armi_combinate":
+			return not bool(s["opzioni"].get("effetti_comb", false))
+		"guardia":
+			return not bool(s["opzioni"].get("garde_vieille", false))
+	return true
 
 func _crea_unita(id: String, h: String, st: String, t: int) -> void:
 	s["unita"][id] = {"h": h, "st": st, "t": t, "rid": false, "mosso": false, "att": false, "dif": false, "avz": false}
@@ -118,6 +141,8 @@ func forza(id: String) -> int:
 	return int(c["r"]) if s["unita"][id]["rid"] else int(c["f"])
 
 func ma(id: String) -> int:
+	if s["unita"].has(id) and s["unita"][id].has("ma_oos"):
+		return mini(int(s["unita"][id]["ma_oos"]), int(cat(id)["ma"]))
 	return int(cat(id)["ma"])
 
 ## Corpo (francesi e prussiani) o nazione (anglo-alleati) per la demoralizzazione
@@ -139,13 +164,22 @@ func turno_label() -> String:
 	return scen["turni"][mini(int(s["turno"]), scen["turni"].size() - 1)]
 
 func notte() -> bool:
-	return turno_label().begins_with("N")
+	var tl := turno_label()
+	if tl == "N0600" and opz("alba"):
+		return false
+	return tl.begins_with("N")
 
 func pioggia() -> bool:
 	return turno_label().begins_with("R")
 
 func senza_combattimento() -> bool:
-	return notte() or pioggia()
+	return notte() or (pioggia() and not opz("pioggia_mod"))
+
+## Lato d'esagono che blocca le zone di controllo (e il contatto): fiume senza ponte; con 16.4 anche i ponti
+func blocca_zoc(a: String, b: String) -> bool:
+	if Mappa.fiume(a, b) and not Mappa.ponte(a, b):
+		return true
+	return Mappa.ponte(a, b) and opz("terreno_mod")
 
 func ora() -> String:
 	var t := turno_label()
@@ -207,7 +241,7 @@ func zoc(h: String, lato_zoc: int) -> bool:
 	var r := false
 	if Mappa.terreno(h) != "castello":
 		for v in Mappa.vicini(h):
-			if lato_hex(v) == lato_zoc and not (Mappa.fiume(v, h) and not Mappa.ponte(v, h)):
+			if lato_hex(v) == lato_zoc and not blocca_zoc(v, h):
 				r = true
 				break
 	_zoc_cache[k] = r
@@ -230,6 +264,15 @@ func dem_unita(id: String) -> bool:
 	if campagna():
 		return bool(s["dem"].get(gruppo_dem(id), false))
 	return bool(s["dem"].get(esercito(id), false))
+
+## La pedina del capo va girata sul retro: comandante inattivo (15.4) o ufficiale del corpo demoralizzato
+func capo_girato(c: String) -> bool:
+	var k: Dictionary = catalogo["capi"][c]
+	if int(k["cap"]) > 0:
+		return bool(s["capi"][c].get("inattivo", false))
+	if campagna():
+		return bool(s["capi"][c].get("dem", false)) or bool(s["dem"].get("%s:%s" % [k["es"], k["des"]], false))
+	return bool(s["dem"].get(k["es"], false))
 
 ## Livelli dei Folio, con i modificatori
 func livello_folio(es: String, dis := false) -> int:
@@ -370,6 +413,12 @@ func _inizio_turno_giocatore() -> void:
 		u["avz"] = false
 	for id in s["capi"]:
 		s["capi"][id]["mosso"] = false
+	for id in s["unita"]:
+		var u: Dictionary = s["unita"][id]
+		u.erase("ma_oos")
+		u.erase("ritcav")
+		if u.get("oos", false) and u["st"] == "mappa" and lato_di(id) == int(s["lato"]):
+			u["ma_oos"] = dado()
 	if campagna():
 		if int(s["lato"]) == FR and turno_label() in ["0900", "R0900"] and giorno() > 16:
 			_rifornimento()
@@ -404,6 +453,59 @@ func _fine_movimento() -> bool:
 	else:
 		s["fase"] = "combattimento"
 		s["batt"] = []
+		if opz("ritirata_cav"):
+			_proponi_ritirate_cav(int(s["lato"]), true)
+	return true
+
+## 15.3: cavalleria e artiglieria a cavallo a contatto, non adiacenti a cavalleria nemica, con un esagono libero
+func ritirate_cav_possibili(lato: int) -> Array:
+	var out := []
+	for id in s["unita"]:
+		var u: Dictionary = s["unita"][id]
+		if u["st"] != "mappa" or lato_di(id) != lato or not (tipo(id) in ["C", "HA"]) or not in_ezoc(id) or u.get("ritcav", false):
+			continue
+		var cav := false
+		for v in Mappa.vicini(u["h"]):
+			for e in unita_in(v, 1 - lato):
+				if tipo(e) == "C" and not blocca_zoc(u["h"], v):
+					cav = true
+		if cav:
+			continue
+		var libero := false
+		for v in Mappa.vicini(u["h"]):
+			if Mappa.passabile(u["h"], v) and not nemico_in(v, lato) and not zoc(v, 1 - lato) and unita_in(v, lato).size() < (1 if Mappa.terreno(v) == "castello" else 2):
+				libero = true
+		if libero:
+			out.append(id)
+	return out
+
+func _proponi_ritirate_cav(lato: int, prima: bool) -> void:
+	var c := ritirate_cav_possibili(lato)
+	if not c.is_empty():
+		s["pendente"] = {"k": "ritirata_cav", "lato": lato, "cand": c, "prima": prima}
+	elif prima:
+		_proponi_ritirate_cav(1 - lato, false)
+
+func _ritira_cav(d: Dictionary) -> bool:
+	var p: Dictionary = s["pendente"]
+	var id: String = d.get("u", "")
+	if not (id in p["cand"]):
+		return false
+	if _ritira(id):
+		s["unita"][id]["ritcav"] = true
+		_log("%s si ritira prima del combattimento." % nome(id))
+		eventi.append({"k": "ritirata", "u": id})
+	var c := ritirate_cav_possibili(int(p["lato"]))
+	if c.is_empty():
+		return _ritirate_cav_fatte()
+	p["cand"] = c
+	return true
+
+func _ritirate_cav_fatte() -> bool:
+	var p: Dictionary = s["pendente"]
+	s["pendente"] = {}
+	if p.get("prima", false):
+		_proponi_ritirate_cav(1 - int(p["lato"]), false)
 	return true
 
 func ammassati() -> Array:
@@ -434,6 +536,11 @@ func _fine_turno() -> void:
 		return
 	s["lato"] = FR
 	_log("[b]%s — %d giugno, ore %s%s[/b]" % ["Turno %d" % (int(s["turno"]) + 1), giorno(), ora(), "  (notte)" if notte() else ("  (pioggia)" if pioggia() else "")])
+	if opz("partenza") and turno_label().ends_with("0600"):
+		for c in s["capi"]:
+			if catalogo["capi"][c]["es"] == "FR" and int(catalogo["capi"][c]["cap"]) > 0 and s["capi"][c]["st"] == "mappa":
+				s["capi"][c]["inattivo"] = true
+		_annuncio("Alle 6 i comandanti francesi riposano: sono inattivi")
 	_inizio_turno_giocatore()
 
 # =============================================================================================
@@ -454,6 +561,10 @@ func applica(d: Dictionary) -> bool:
 			ok = rq["k"] == "movimento" and _esci(d)
 		"capo":
 			ok = rq["k"] == "movimento" and _muovi_capo(d)
+		"esci_capo":
+			ok = rq["k"] == "movimento" and _esci_capo(d)
+		"ritira_cav":
+			ok = rq["k"] == "ritirata_cav" and _ritira_cav(d)
 		"attacco":
 			ok = rq["k"] == "combattimento" and _attacco(d)
 		"avanza":
@@ -468,6 +579,8 @@ func applica(d: Dictionary) -> bool:
 				ok = true
 			elif rq["k"] == "avanza":
 				ok = _avanza({"u": ""})
+			elif rq["k"] == "ritirata_cav":
+				ok = _ritirate_cav_fatte()
 	if ok:
 		s["azioni"] = int(s["azioni"]) + 1
 		_ricalcola()
@@ -478,15 +591,19 @@ func applica(d: Dictionary) -> bool:
 # ---------- movimento
 
 ## Costo per passare da a a b per l'unità (o capo, che muove come cavalleria)
-func costo_passo(a: String, b: String, tp: String, dem: bool) -> float:
+func costo_passo(a: String, b: String, tp: String, dem: bool, lato := -1) -> float:
 	if not Mappa.passabile(a, b):
 		return INF
-	if Mappa.strada(a, b):
+	# 16.4: strade e sentieri non portano dentro zone nemiche né in esagoni con unità amiche
+	var su_strada := true
+	if lato >= 0 and opz("terreno_mod") and (zoc(b, 1 - lato) or not unita_in(b, lato).is_empty()):
+		su_strada = false
+	if su_strada and Mappa.strada(a, b):
 		return 0.5
 	var c := Dati.costo_terreno(Mappa.terreno(b), tp, dem)
-	if Mappa.sentiero(a, b):
+	if su_strada and Mappa.sentiero(a, b):
 		c = minf(c, 1.0)
-	elif Mappa.ruscello(a, b):
+	elif Mappa.ruscello(a, b) and not Mappa.strada(a, b) and not Mappa.sentiero(a, b):
 		c += 2.0
 	return c
 
@@ -502,8 +619,20 @@ func raggiungibili(id: String, partenza := "", costo0 := 0.0) -> Dictionary:
 	var mpa: float = float(10 if leader and int(cat(id)["cap"]) > 0 else (6 if leader else ma(id)))
 	if leader and campagna() and s["capi"][id].get("dem", false):
 		dem = true
+	if leader and campagna() and bool(s["dem"].get("%s:%s" % [cat(id)["es"], cat(id)["des"]], false)):
+		dem = true
+	# 10.1C: il capo che dà il comando in questo turno ha metà dei punti movimento
+	if leader and s.get("comando_dato", {}).has(id):
+		mpa = floorf(mpa / 2.0)
 	var ooc := (not leader) and campagna() and not in_comando(id)
+	# 16.15: fuori comando paga 2 per l'aperto ma entra nelle zone nemiche
+	var ooc_mod := ooc and opz("fc_mod")
+	if ooc_mod:
+		dem = true
+	var raddoppio := 2.0 if (pioggia() and opz("pioggia_mod")) else 1.0
 	var out := {h0: {"c": costo0, "da": ""}}
+	if leader and s["capi"][id].get("inattivo", false):
+		return out
 	if not leader and partenza == "" and zoc(h0, 1 - lato):
 		return out
 	var coda := [h0]
@@ -530,11 +659,16 @@ func raggiungibili(id: String, partenza := "", costo0 := 0.0) -> Dictionary:
 				if zoc(v, 1 - lato) and unita_in(v, lato).is_empty():
 					continue
 			else:
-				if zoc(v, 1 - lato) and (senza_combattimento() or ooc):
+				if zoc(v, 1 - lato) and (senza_combattimento() or (ooc and not ooc_mod)):
 					continue
-			var c := c0 + costo_passo(h, v, tp, dem)
+			var passo := costo_passo(h, v, tp, dem, lato) * raddoppio
+			var c := c0 + passo
 			if c > mpa + 0.001:
-				continue
+				# 16.5: con la pioggia si muove sempre almeno di un esagono
+				if raddoppio > 1.0 and h == h0 and costo0 == 0.0 and passo < INF:
+					c = mpa
+				else:
+					continue
 			if not out.has(v) or c < out[v]["c"] - 0.001:
 				out[v] = {"c": c, "da": h}
 				if not coda.has(v):
@@ -569,8 +703,18 @@ func _muovi(d: Dictionary) -> bool:
 		_occupa(x, int(s["lato"]))
 	_sposta_capi_nemici(h)
 	_ricalcola()
+	_sveglia_comandanti(h, lato_di(id))
 	eventi.append({"k": "mossa", "u": id, "da": da, "a": h, "p": percorso(rg, h)})
 	return true
+
+## 15.4: un'unità alleata che entra in una zona di controllo francese entro 10 esagoni sveglia i comandanti inattivi
+func _sveglia_comandanti(h: String, lato: int) -> void:
+	if lato != AL or not opz("partenza") or not zoc(h, FR):
+		return
+	for c in s["capi"]:
+		if s["capi"][c].get("inattivo", false) and s["capi"][c]["st"] == "mappa" and Mappa.distanza(s["capi"][c]["h"], h) <= 10:
+			s["capi"][c]["inattivo"] = false
+			_annuncio("%s si sveglia: il nemico è vicino" % nome(c))
 
 func ingressi(id: String) -> Array:
 	var out := []
@@ -617,6 +761,7 @@ func _entra(d: Dictionary) -> bool:
 	s["unita"][id]["mosso"] = true
 	_occupa(h, int(s["lato"]))
 	_ricalcola()
+	_sveglia_comandanti(h, lato_di(id))
 	_log("%s entra in gioco (%s)." % [nome(id), Mappa.sigla(h)])
 	eventi.append({"k": "mossa", "u": id, "da": e, "a": h, "p": [e, h]})
 	return true
@@ -701,8 +846,31 @@ func _muovi_capo(d: Dictionary) -> bool:
 	var h: String = d.get("h", "")
 	if not rg.has(h) or h == s["capi"][c]["h"]:
 		return false
+	# 15.4: un comandante attivo che passa da un comandante inattivo lo sveglierà al prossimo comando
+	if int(cat(c)["cap"]) > 0:
+		for x in percorso(rg, h):
+			for c2 in capi_in(x, lato_di(c)):
+				if c2 != c and s["capi"][c2].get("inattivo", false):
+					s["capi"][c2]["sveglia"] = true
 	s["capi"][c]["h"] = h
 	s["capi"][c]["mosso"] = true
+	_ricalcola()
+	return true
+
+## 22.4B: nella campagna anche i capi francesi possono uscire da 0605 (servono per contare le unità uscite)
+func _esci_capo(d: Dictionary) -> bool:
+	var c: String = d.get("c", "")
+	if not campagna() or not s["capi"].has(c) or lato_di(c) != FR or int(s["lato"]) != FR:
+		return false
+	var k: Dictionary = s["capi"][c]
+	if k["st"] != "mappa" or k.get("mosso", false):
+		return false
+	var rg := raggiungibili(c)
+	if not rg.has("0605") or zoc("0605", AL):
+		return false
+	k["st"] = "uscita"
+	k["mosso"] = true
+	_log("%s esce dalla mappa verso Bruxelles." % nome(c))
 	_ricalcola()
 	return true
 
@@ -737,8 +905,18 @@ func _raggio_comando(h0: String, lato: int, raggio: int) -> Dictionary:
 
 func _calcola_comando(lato: int) -> void:
 	s["comando"] = {}
+	s["comando_dato"] = {}
 	if notte():
 		return
+	# 15.4: i comandanti francesi inattivi si svegliano con un 1, o se un comandante attivo li ha raggiunti
+	if lato == FR and opz("partenza"):
+		for c in s["capi"]:
+			var k: Dictionary = s["capi"][c]
+			if k.get("inattivo", false) and k["st"] == "mappa":
+				if k.get("sveglia", false) or dado() == 1:
+					k["inattivo"] = false
+					k.erase("sveglia")
+					_log("%s è di nuovo attivo." % nome(c))
 	var es_l := ["FR"] if lato == FR else ["PR", "AA"]
 	var riorg: Dictionary = s.get("riorg_capi", {})
 	for es in es_l:
@@ -748,7 +926,8 @@ func _calcola_comando(lato: int) -> void:
 			if s["capi"][c]["st"] != "mappa" or catalogo["capi"][c]["es"] != es:
 				continue
 			if int(catalogo["capi"][c]["cap"]) > 0:
-				comandanti.append(c)
+				if not s["capi"][c].get("inattivo", false):
+					comandanti.append(c)
 			elif not riorg.has(c):
 				ufficiali[catalogo["capi"][c]["des"]] = c
 		var unita := []
@@ -774,6 +953,7 @@ func _calcola_comando(lato: int) -> void:
 					break
 				ufficiali_ok[x[1]] = true
 				n += 1
+				s["comando_dato"][cm] = true
 			# unità comandate direttamente: prima quelle a contatto col nemico
 			var dir := []
 			for id in unita:
@@ -785,6 +965,7 @@ func _calcola_comando(lato: int) -> void:
 				if k >= cap:
 					break
 				diretti[x[2]] = true
+				s["comando_dato"][cm] = true
 				k += 1
 		for des in ufficiali_ok:
 			s["comando"][ufficiali[des]] = true
@@ -793,6 +974,7 @@ func _calcola_comando(lato: int) -> void:
 				if str(cat(id)["des"]).split("/")[-1] == des or cat(id)["c"] == des:
 					if rg3.has(s["unita"][id]["h"]):
 						s["comando"][id] = true
+						s["comando_dato"][ufficiali[des]] = true
 		for id in diretti:
 			s["comando"][id] = true
 	# chi difende fuori comando nel turno avversario
@@ -924,27 +1106,38 @@ func _rifornimento() -> void:
 				if not rete.has(v) and _ha_strada(v) and Mappa.passabile(h, v) and not nemico_in(v, lato):
 					rete[v] = true
 					coda.append(v)
+		if es == "FR" and campagna():
+			# 22.4B: le unità uscite da 0605 contano solo se da lì passa una linea di rifornimento francese
+			s["usc_rif"] = _traccia_rif(rete, "0605", lato)
 		for id in s["unita"]:
 			if esercito(id) != es or s["unita"][id]["st"] != "mappa":
 				continue
-			var ok := false
-			var vis := {s["unita"][id]["h"]: 0}
-			var q := [s["unita"][id]["h"]]
-			while not q.is_empty() and not ok:
-				var h: String = q.pop_front()
-				if rete.has(h):
-					ok = true
-					break
-				if vis[h] >= 5:
-					continue
-				for v in Mappa.vicini(h):
-					if not vis.has(v) and Mappa.passabile(h, v) and not nemico_in(v, lato):
-						vis[v] = vis[h] + 1
-						q.append(v)
+			var ok := _traccia_rif(rete, s["unita"][id]["h"], lato)
+			s["unita"][id].erase("oos")
 			if not ok:
-				_elimina(id, false)
-				_log("%s è senza rifornimento ed è eliminato." % nome(id))
+				if opz("oos_mod"):
+					s["unita"][id]["oos"] = true
+					_log("%s è senza rifornimento fino a domattina." % nome(id))
+				else:
+					_elimina(id, false)
+					_log("%s è senza rifornimento ed è eliminato." % nome(id))
 	_ricalcola()
+
+## Linea di rifornimento: al massimo cinque esagoni fino alla rete stradale collegata alla fonte
+func _traccia_rif(rete: Dictionary, h0: String, lato: int) -> bool:
+	var vis := {h0: 0}
+	var q := [h0]
+	while not q.is_empty():
+		var h: String = q.pop_front()
+		if rete.has(h):
+			return true
+		if vis[h] >= 5:
+			continue
+		for v in Mappa.vicini(h):
+			if not vis.has(v) and Mappa.passabile(h, v) and not nemico_in(v, lato):
+				vis[v] = vis[h] + 1
+				q.append(v)
+	return false
 
 # =============================================================================================
 # Combattimento
@@ -1059,72 +1252,217 @@ func valuta_attacco(d: Dictionary) -> Dictionary:
 	if adiac.is_empty() and dif_hex.size() > 1:
 		r["motivo"] = "il solo bombardamento colpisce un esagono"
 		return r
-	# fuori comando (campagna): non attacca se non è già a contatto
+	var note := []          # modificatori applicati, in parole
+	var fatt: Dictionary = d.get("fattori", {})   # 16.18: unità senza rifornimento a metà forza
+	# fuori comando (campagna): 11.3 non attacca se non è già a contatto; 16.15 attacca normalmente
 	var ooc := false
 	if campagna():
 		for id in tutti:
 			if not in_comando(id):
-				if not in_ezoc(id):
+				if not in_ezoc(id) and not opz("fc_mod"):
 					r["motivo"] = "%s è fuori comando" % nome(id)
 					return r
+				if tipo(id) in ["A", "HA"] and bomb.has(id):
+					r["motivo"] = "%s è fuori comando: l'artiglieria non bombarda" % nome(id)
+					return r
 				ooc = true
-	# forza (TEC: la cavalleria che attacca dentro bosco o palude è dimezzata; 6.3B: si sommano le forze
-	# da dimezzare e si arrotonda una volta sola, per eccesso)
-	var att := 0.0
-	var da_dimezzare := 0.0
+	var pioggia_c := pioggia() and opz("pioggia_mod")
+	if pioggia_c and adiac.is_empty():
+		r["motivo"] = "con la pioggia l'artiglieria tira solo insieme a un attacco"
+		return r
+	var tm := opz("terreno_mod")
 	var dentro_bosco := false
+	var dentro_foresta := false
+	var dentro_paese := false
 	for h in dif_hex:
 		if Mappa.terreno(h) in ["bosco", "palude"]:
 			dentro_bosco = true
+		if Mappa.terreno(h) == "bosco":
+			dentro_foresta = true
+		if Mappa.terreno(h) == "citta":
+			dentro_paese = true
+	# --- attaccanti: forza stampata, poi i dimezzamenti (sommati e arrotondati una volta, 6.3B) e i raddoppi
+	var att := 0.0
+	var da_dimezzare := 0.0
+	var dimezzati := {}     # motivo -> [nomi]
 	var tipi := {}
+	var forze_arma := {"I": 0.0, "C": 0.0, "A": 0.0}
+	var righe_att := []
 	for id in tutti:
-		if tipo(id) == "C" and dentro_bosco:
-			da_dimezzare += float(forza(id))
+		var f := float(forza(id))
+		if fatt.has(id):
+			f = maxf(1.0, ceilf(f * float(fatt[id])))
+			note.append("%s senza rifornimento: forza dimezzata" % nome(id))
+		var tp := tipo(id)
+		var bombarda: bool = bomb.has(id)
+		if bombarda and opz("bomb_prol") and adiac.is_empty() and not s["unita"][id]["mosso"]:
+			f *= 2.0
+			note.append("Bombardamento prolungato: %s raddoppia (16.9)" % nome(id))
+		var perche := ""
+		if tp == "C" and dentro_bosco:
+			perche = "cavalleria che attacca nel bosco o nella palude"
+		elif tm and dentro_paese:
+			perche = "attacco contro un paese (16.4)"
+		elif tm and tp in ["A", "HA"] and dentro_foresta:
+			perche = "artiglieria contro il bosco (16.4)"
+		elif tm and not bombarda:
+			for h in dif_hex:
+				if Mappa.adiacenti(s["unita"][id]["h"], h) and Mappa.acqua(s["unita"][id]["h"], h):
+					perche = "attacco attraverso ruscello o ponte (16.4)"
+		if perche != "":
+			da_dimezzare += f
+			if not dimezzati.has(perche):
+				dimezzati[perche] = []
+			dimezzati[perche].append(nome(id))
 		else:
-			att += float(forza(id))
-		tipi[tipo(id).substr(0, 1) if tipo(id) != "HA" else "A"] = true
-	att += ceilf(da_dimezzare / 2.0)
+			att += f
+		righe_att.append([nome(id), forza(id), f * (0.5 if perche != "" else 1.0), "bombarda" if bombarda else ""])
+		var arma := "A" if tp in ["A", "HA"] else tp.substr(0, 1)
+		tipi[arma] = true
+		forze_arma[arma] = float(forze_arma.get(arma, 0.0)) + float(forza(id))
+	if da_dimezzare > 0.0:
+		att += ceilf(da_dimezzare / 2.0)
+		for k in dimezzati:
+			note.append("Dimezzati, %s: %s" % [k, ", ".join(dimezzati[k])])
+	if pioggia_c:
+		att = ceilf(att / 2.0)
+		note.append("Pioggia: tutti gli attaccanti a metà forza (16.5)")
+	# --- difensori
 	var dif := 0.0
 	var castello_fant := false
+	var righe_dif := []
+	var solo_fanteria := true
+	var tutto_aperto := true
 	for h in dif_hex:
 		var base := 0.0
-		var cav_bosco := 0.0
+		var cav_dim := 0.0
 		for id in unita_in(h, 1 - lato):
-			if tipo(id) == "C" and Mappa.terreno(h) in ["bosco", "palude"]:
-				cav_bosco += float(forza(id))
+			if tipo(id) != "I":
+				solo_fanteria = false
+			var f := float(forza(id))
+			if fatt.has(id):
+				f = maxf(1.0, ceilf(f * float(fatt[id])))
+			if tipo(id) == "C" and (Mappa.terreno(h) in ["bosco", "palude"] or (tm and Mappa.terreno(h) == "citta")):
+				cav_dim += f
+				righe_dif.append([nome(id), forza(id), f / 2.0, "cavalleria dimezzata"])
 			else:
-				base += float(forza(id))
-		base += ceilf(cav_bosco / 2.0)
+				base += f
+				righe_dif.append([nome(id), forza(id), f, ""])
+		if cav_dim > 0.0:
+			base += ceilf(cav_dim / 2.0)
+			note.append("Cavalleria che difende in %s: dimezzata" % Dati.NOMI_TERRENO.get(Mappa.terreno(h), ""))
+		if Mappa.terreno(h) != "aperto":
+			tutto_aperto = false
 		var molt := 1.0
+		var perche := ""
 		match Mappa.terreno(h):
 			"citta":
-				molt = 2.0
+				if not tm:
+					molt = 2.0
+					perche = "paese: difesa ×2"
 			"castello":
 				molt = 3.0
-		# ruscello o ponte: raddoppio se tutti gli attacchi adiacenti passano da lì
-		var ruscello := not adiac.is_empty()
+				perche = "fattoria fortificata: difesa ×3"
+		# ruscello o ponte: raddoppio se tutti gli attacchi adiacenti passano da lì (non con 16.4)
+		var ruscello := not adiac.is_empty() and not tm
 		for id in adiac:
 			if not Mappa.acqua(s["unita"][id]["h"], h):
 				ruscello = false
-		if ruscello:
-			molt = maxf(molt, 2.0)
+		if ruscello and molt < 2.0:
+			molt = 2.0
+			perche = "tutti attaccano attraverso ruscello o ponte: difesa ×2"
+		elif ruscello:
+			note.append("Ruscello o ponte: non si somma al paese o alla fattoria (vale il vantaggio maggiore)")
+		if perche != "":
+			note.append("%s in %s" % [perche.substr(0, 1).to_upper() + perche.substr(1), Mappa.sigla(h)])
 		dif += base * molt
 		if Mappa.terreno(h) == "castello":
 			for id in unita_in(h, 1 - lato):
 				if tipo(id) == "I" and not dem_unita(id):
 					castello_fant = true
+	# 16.7: effetti combinati contro fanteria in terreno aperto (il difensore sceglie l'arma da potenziare)
+	if opz("effetti_comb") and solo_fanteria and tutto_aperto:
+		var I: float = forze_arma["I"]
+		var C: float = forze_arma["C"]
+		var A: float = forze_arma["A"]
+		var extra := -1.0
+		var testo := ""
+		if tipi.has("I") and tipi.has("C") and tipi.has("A"):
+			var opzioni := [[2 * I + C, "fanteria ×3, cavalleria ×2"], [2 * I + A, "fanteria ×3, artiglieria ×2"],
+				[2 * C + I, "cavalleria ×3, fanteria ×2"], [2 * C + A, "cavalleria ×3, artiglieria ×2"],
+				[2 * A + I, "artiglieria ×3, fanteria ×2"], [2 * A + C, "artiglieria ×3, cavalleria ×2"]]
+			opzioni.sort_custom(func(x, y): return x[0] < y[0])
+			extra = opzioni[0][0]
+			testo = opzioni[0][1]
+		elif tipi.has("I") and tipi.has("A"):
+			extra = minf(I, A)
+			testo = "fanteria ×2" if I <= A else "artiglieria ×2"
+		elif tipi.has("I") and tipi.has("C"):
+			extra = minf(I, C)
+			testo = "fanteria ×2" if I <= C else "cavalleria ×2"
+		elif tipi.has("C") and tipi.has("A"):
+			extra = minf(C, 2 * A)
+			testo = "cavalleria ×2" if C <= 2 * A else "artiglieria ×3"
+		if extra > 0.0:
+			att += extra
+			note.append("Effetti combinati (16.7): %s, scelto dal difensore (+%s)" % [testo, _num(extra)])
 	var col := Dati.colonna(att, dif)
-	if s["opzioni"].get("armi_combinate", true) and dif_hex.size() == 1 and tipi.has("I") and tipi.has("C") and tipi.has("A"):
-		col = mini(col + 1, 9)
+	var spost := 0
+	var armi := dif_hex.size() == 1 and tipi.has("I") and tipi.has("C") and tipi.has("A")
+	if opz("armi_combinate") and armi:
+		spost += 1
+		note.append("Armi combinate (fanteria, cavalleria e artiglieria): +1 colonna")
+	# 16.13: capi in combattimento (due colonne a favore di chi ha il capo con la pila)
+	var capo_att := ""
+	var capo_dif := ""
+	if opz("bonus_capi"):
+		capo_att = _capo_di_pila(adiac, lato)
+		capo_dif = _capo_di_pila(difensori, 1 - lato)
+		if capo_att != "":
+			spost += 2
+			note.append("%s guida l'attacco: +2 colonne (16.13)" % nome(capo_att))
+		if capo_dif != "":
+			spost -= 2
+			note.append("%s guida la difesa: -2 colonne (16.13)" % nome(capo_dif))
+	col = clampi(col + spost, 0, 9)
+	if castello_fant and col > 7:
+		col = 7
+		note.append("Fattoria difesa da fanteria: non oltre 4-1")
 	if castello_fant:
-		col = mini(col, 7)
+		note.append("Fattoria: il difensore ignora la ritirata (DR)")
+	if ooc:
+		if opz("fc_mod"):
+			note.append("Attaccanti fuori comando (16.15): DR senza effetto, niente avanzata")
+		else:
+			note.append("Attaccanti fuori comando (11.3): DE e DR diventano AR")
 	var max_col := col
 	if d.has("col"):
 		col = clampi(int(d["col"]), 0, max_col)
+		if col < max_col:
+			note.append("Colonna ridotta volontariamente a %s" % Dati.COLONNE[col])
 	r.merge({"ok": true, "dif_hex": dif_hex, "att": att, "dif": dif, "col": col, "col_max": max_col, "adiac": adiac, "bomb": bomb,
-		"difensori": difensori, "tutti": tutti, "ooc": ooc, "castello": castello_fant,
-		"armi": dif_hex.size() == 1 and tipi.has("I") and tipi.has("C") and tipi.has("A")}, true)
+		"difensori": difensori, "tutti": tutti, "ooc": ooc, "castello": castello_fant, "armi": armi, "note": note,
+		"righe_att": righe_att, "righe_dif": righe_dif, "capo_att": capo_att, "capo_dif": capo_dif}, true)
 	return r
+
+## 16.13: il capo che guida una pila (comandante attivo, o ufficiale del corpo di quella pila)
+func _capo_di_pila(ids: Array, lato: int) -> String:
+	var visti := {}
+	for id in ids:
+		var h: String = s["unita"][id]["h"]
+		if visti.has(h):
+			continue
+		visti[h] = true
+		for c in capi_in(h, lato):
+			var k: Dictionary = catalogo["capi"][c]
+			if s["capi"][c].get("inattivo", false):
+				continue
+			if int(k["cap"]) > 0:
+				return c
+			for u in unita_in(h, lato):
+				if ufficiale_di(u) == c:
+					return c
+	return ""
 
 func in_comando_dif(id: String) -> bool:
 	# lo stato di comando del difensore è quello calcolato nel suo ultimo turno; si approssima col raggio attuale
@@ -1135,20 +1473,75 @@ func _attacco(d: Dictionary) -> bool:
 	if not v["ok"]:
 		return false
 	var lato := int(s["lato"])
+	# 16.18: prima di calcolare il rapporto, un dado per ogni unità senza rifornimento
+	if opz("oos_mod") and not d.has("fattori"):
+		var fattori := {}
+		var via_att := []
+		var via_dif := []
+		for id in v["tutti"] + v["difensori"]:
+			if not s["unita"][id].get("oos", false):
+				continue
+			var dr := dado()
+			var hh: String = s["unita"][id]["h"]
+			for c in capi_in(hh, lato_di(id)):
+				if int(catalogo["capi"][c]["cap"]) > 0 or ufficiale_di(id) == c:
+					dr += 1
+					break
+			if dr <= 2:
+				if v["tutti"].has(id):
+					via_att.append(id)
+				else:
+					via_dif.append(id)
+			elif dr <= 4:
+				fattori[id] = 0.5
+			_log("%s senza rifornimento: dado %d — %s." % [nome(id), dr, "si ritira prima del combattimento" if dr <= 2 else ("combatte a metà forza" if dr <= 4 else "combatte normalmente")])
+		if not via_att.is_empty() or not via_dif.is_empty() or not fattori.is_empty():
+			for id in via_att + via_dif:
+				_ritira(id)
+			_ricalcola()
+			var d2 := d.duplicate()
+			d2["fattori"] = fattori
+			d2["att"] = (d.get("att", []) as Array).filter(func(x): return not via_att.has(x) and s["unita"][x]["st"] == "mappa")
+			if d2["att"].is_empty() or not valuta_attacco(d2)["ok"]:
+				for id in v["tutti"]:
+					if s["unita"][id]["st"] == "mappa":
+						s["unita"][id]["att"] = true
+				for id in v["difensori"]:
+					if s["unita"][id]["st"] == "mappa":
+						s["unita"][id]["dif"] = true
+				_log("L'attacco su %s non ha luogo." % Mappa.sigla(v["dif_hex"][0]))
+				# se tutti i difensori si sono ritirati, gli attaccanti possono avanzare
+				var cand2 := []
+				for h in v["dif_hex"]:
+					if unita_in(h).is_empty() and Mappa.terreno(h) != "castello":
+						for id in v["adiac"]:
+							if s["unita"][id]["st"] == "mappa" and not via_att.has(id) and Mappa.adiacenti(s["unita"][id]["h"], h) and Mappa.passabile(s["unita"][id]["h"], h):
+								cand2.append([id, h])
+				if not cand2.is_empty():
+					s["pendente"] = {"k": "avanza", "lato": lato, "cand": cand2}
+				return true
+			return _attacco(d2)
 	var dif_hex: Array = v["dif_hex"]
 	var dd := dado()
 	var ris: String = Dati.TRC[dd - 1][int(v["col"])]
 	var orig := ris
 	if v["castello"] and ris == "DR":
 		ris = "NE"
-	if v["ooc"] and ris in ["DE", "DR"]:
-		ris = "AR"
 	var tutti_ooc_dif := campagna()
 	for id in v["difensori"]:
 		if in_comando_dif(id):
 			tutti_ooc_dif = false
-	if tutti_ooc_dif and ris == "AE":
-		ris = "AR"
+	if opz("fc_mod"):
+		# 16.15: gli attaccanti fuori comando non ottengono la ritirata; i difensori fuori comando non la subiscono
+		if v["ooc"] and ris == "DR":
+			ris = "NE"
+		if tutti_ooc_dif and ris in ["AE", "AR"]:
+			ris = "NE"
+	else:
+		if v["ooc"] and ris in ["DE", "DR"]:
+			ris = "AR"
+		if tutti_ooc_dif and ris == "AE":
+			ris = "AR"
 	for id in v["tutti"]:
 		s["unita"][id]["att"] = true
 	for id in v["difensori"]:
@@ -1241,6 +1634,44 @@ func _attacco(d: Dictionary) -> bool:
 				s["guardia"] = int(s["guardia"]) + 20
 				_annuncio("La Guardia imperiale è respinta! Il livello francese scende di 20")
 			_controlla_demoralizzazione()
+	# 16.12: la Vecchia Guardia respinta fa fuggire la fanteria di linea che la vede
+	if opz("garde_vieille") and lato == FR and ris in ["AE", "AR"]:
+		var vecchia := false
+		for id in v["tutti"]:
+			var c := cat(id)
+			if tipo(id) == "I" and String(c["des"]) in ["Gren/Gd", "Chas/Gd"]:
+				vecchia = true
+		if vecchia:
+			var fuggiti := []
+			for id in s["unita"].keys():
+				var u: Dictionary = s["unita"][id]
+				if u["st"] != "mappa" or lato_di(id) != FR or tipo(id) != "I" or String(cat(id)["c"]) == "Gd":
+					continue
+				var vicino := false
+				for h in dif_hex:
+					if Mappa.distanza(u["h"], h) <= 10:
+						vicino = true
+				if vicino and dado() <= 3:
+					for i in 3:
+						if s["unita"][id]["st"] == "mappa":
+							_ritira(id)
+					fuggiti.append(id)
+					if campagna():
+						var g := gruppo_dem(id)
+						s["mod"]["lv:" + g] = int(s["mod"].get("lv:" + g, 0)) + 1
+					else:
+						s["guardia"] = int(s["guardia"]) + 1
+			_annuncio("La Vecchia Guardia è respinta! %d unità di linea fuggono (16.12)" % fuggiti.size())
+			_ricalcola()
+			_controlla_demoralizzazione()
+	# 16.13: il capo che ha guidato la pila rischia la vita
+	for c in [v.get("capo_att", ""), v.get("capo_dif", "")]:
+		if c != "" and s["capi"][c]["st"] == "mappa":
+			if dado() == 6:
+				s["capi"][c]["st"] = "elim"
+				_annuncio("%s è caduto alla testa dei suoi uomini" % nome(c))
+				_ricalcola()
+	rep["note"] = v.get("note", [])
 	_log(_testo_battaglia(rep))
 	s["ultima_battaglia"] = rep
 	eventi.append({"k": "battaglia", "rep": rep})
@@ -1266,8 +1697,33 @@ func _attacco(d: Dictionary) -> bool:
 					for h in vuoti:
 						if Mappa.adiacenti(s["unita"][id]["h"], h) and Mappa.passabile(s["unita"][id]["h"], h):
 							cand.append([id, h])
-	if not cand.is_empty():
-		s["pendente"] = {"k": "avanza", "lato": vincitore, "cand": cand}
+	if cand.is_empty():
+		return true
+	var pend := {"k": "avanza", "lato": vincitore, "cand": cand}
+	# 15.5: impeto della cavalleria
+	var cav := cand.filter(func(c): return tipo(c[0]) == "C")
+	if opz("impeto") and not cav.is_empty():
+		var di := dado()
+		if di <= 2:
+			_log("Impeto della cavalleria: dado %d — si avanza a scelta." % di)
+		elif di <= 4:
+			_log("Impeto della cavalleria: dado %d — nessuna avanzata." % di)
+			return true
+		else:
+			_log("Impeto della cavalleria: dado %d — una cavalleria deve avanzare." % di)
+			pend["cand"] = cav
+			pend["obbligata"] = true
+	# 16.13: il capo vittorioso in attacco deve avanzare con la sua pila
+	var capo: String = v.get("capo_att", "") if vincitore == lato else ""
+	if capo != "" and s["capi"][capo]["st"] == "mappa" and not pend.get("obbligata", false):
+		var hc: String = s["capi"][capo]["h"]
+		var dalla_pila := cand.filter(func(c): return s["unita"][c[0]]["h"] == hc)
+		if not dalla_pila.is_empty():
+			pend["cand"] = dalla_pila
+			pend["obbligata"] = true
+			pend["capo"] = capo
+			pend["tutta_pila"] = true
+	s["pendente"] = pend
 	return true
 
 func _testo_battaglia(rep: Dictionary) -> String:
@@ -1443,11 +1899,37 @@ func _avanza(d: Dictionary) -> bool:
 				h = c[1]
 		if not ok:
 			return false
+		var h0: String = s["unita"][id]["h"]
 		s["unita"][id]["h"] = h
 		s["unita"][id]["avz"] = true
 		_occupa(h, lato_di(id))
 		_sposta_capi_nemici(h)
 		_log("%s avanza in %s." % [nome(id), Mappa.sigla(h)])
+		var capo: String = p.get("capo", "")
+		if p.get("tutta_pila", false):
+			# 16.13: tutta la pila del capo avanza con lui
+			for x in unita_in(h0, lato_di(id)):
+				if not s["unita"][x]["avz"]:
+					s["unita"][x]["h"] = h
+					s["unita"][x]["avz"] = true
+					_log("%s avanza con %s." % [nome(x), nome(capo)])
+		elif capo == "" and opz("avanzata_capi") and not p.get("seconda", false):
+			# 15.6: un capo con due unità impegnate può avanzare insieme a entrambe
+			for c in capi_in(h0, lato_di(id)):
+				var compagni := []
+				for x in unita_in(h0, lato_di(id)):
+					if x != id and (s["unita"][x]["att"] or s["unita"][x]["dif"]) and not dem_unita(x) and Mappa.passabile(h0, h):
+						compagni.append([x, h])
+				if not compagni.is_empty():
+					s["pendente"] = {"k": "avanza", "lato": p["lato"], "cand": compagni, "capo": c, "seconda": true,
+						"poi_fine": p.get("poi_fine", false)}
+					_ricalcola()
+					return true
+		if capo != "" and s["capi"].has(capo) and s["capi"][capo]["st"] == "mappa":
+			s["capi"][capo]["h"] = h
+			_log("%s avanza con le sue truppe." % nome(capo))
+	elif p.get("obbligata", false):
+		return false
 	s["pendente"] = {}
 	_ricalcola()
 	if p.get("poi_fine", false):
@@ -1587,10 +2069,33 @@ func punti_campagna() -> int:
 		var st: String = s["unita"][id]["st"]
 		if st in ["riorg", "distrutta"]:
 			p += int(cat(id)["f"]) * (1 if lato_di(id) == AL else -1)
-	var usc := 2 * int(s["uscite"]["FR"])
-	if usc >= 40:
+	var sp := punti_uscita()
+	var usc := 2 * sp
+	if sp >= 20:
 		usc *= 2
 	return p + usc
+
+## 22.4B: punti forza francesi usciti che contano per la vittoria (comando e rifornimento da 0605)
+func punti_uscita() -> int:
+	if not s.get("usc_rif", true):
+		return 0
+	var capacita := 0
+	var ufficiali := []
+	for c in s["capi"]:
+		if lato_di(c) != FR or s["capi"][c]["st"] != "uscita":
+			continue
+		if int(catalogo["capi"][c]["cap"]) > 0:
+			capacita += int(catalogo["capi"][c]["cap"])
+		else:
+			ufficiali.append(c)
+	var attivi := {}
+	for c in ufficiali.slice(0, capacita):
+		attivi[c] = true
+	var sp := 0
+	for id in s["unita"]:
+		if lato_di(id) == FR and s["unita"][id]["st"] == "uscita" and attivi.has(ufficiale_di(id)):
+			sp += forza(id)
+	return sp
 
 # =============================================================================================
 # Registro
