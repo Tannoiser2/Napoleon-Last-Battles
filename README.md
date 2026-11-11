@@ -73,14 +73,28 @@ Si gioca qui: https://tannoiser2.github.io/Napoleon-Last-Battles/ (e nella ludot
 
 - Le ritirate le sceglie il motore (verso il terreno più lontano dal nemico), per entrambi i lati.
 - La riorganizzazione della campagna è automatica all'inizio del turno del proprio lato.
-- Il rifornimento della campagna: Francesi al bordo sud, Prussiani a est, Anglo-alleati a nord o a ovest (il testo
-  rivisto dice "ovest" per i Prussiani e "nord o est" per gli Anglo-alleati, che non torna con la geografia della
-  campagna: Liegi a est, Ostenda a ovest). La rete stradale è quella riconosciuta dalla mappa: si collegano gli
-  esagoni stradali adiacenti.
+- Il rifornimento della campagna segue la 4ª edizione (V6F, 14.1): Francesi al bordo sud, Prussiani a est,
+  Anglo-alleati a ovest (la numerazione degli esagoni della V6F è la stessa del gioco). La rete stradale è quella
+  riconosciuta dalla mappa: si collegano gli esagoni stradali adiacenti.
 - Wavre: l'uscita è il bordo ovest a nord dell'esagono W0117 (il testo dice "est", ma l'esagono 01xx è a ovest).
-- Ligny: livelli prussiani 55/74 e vittoria come nelle regole di scenario della cartella `zzNLB_changes`.
+- Ligny: livelli prussiani 55/74, francese 35 (che conta solo finché i Prussiani non sono demoralizzati, V6F 18.3A).
 - Le regole facoltative 25.1-25.4 (ritirata della cavalleria prima del combattimento, partenza ritardata, impeto
   della cavalleria, avanzata con i capi) non ci sono.
+
+## Confronto con la 4ª edizione (regole V6F, Decision Games 2015)
+
+Verificato punto per punto con il regolamento V6F: sequenza di gioco, notte e pioggia, movimento e Tabella del
+terreno, zone di controllo, impilamento, rinforzi, uscite, combattimento obbligatorio e su più esagoni, TRC,
+terreno in combattimento, ritirate e spostamenti a catena, avanzata, artiglieria e linea di tiro, fattorie,
+morale degli eserciti e dei corpi, capi, comando, riorganizzazione, rifornimento, armi combinate, Guardia,
+livelli e vittoria dei cinque scenari. Corretti dopo il confronto: cavalleria dimezzata quando attacca *dentro*
+bosco o palude (prima: quando attaccava *da* lì) con arrotondamento unico dei dimezzamenti; costo del bosco
+invariato per i corpi demoralizzati; livello francese di Ligny (35); vantaggio della fattoria legato solo alla
+demoralizzazione; niente avanzata per gli attaccanti fuori comando dopo uno scambio; riorganizzazione dopo un
+turno completo; vicinanza dei corpi demoralizzati (22.5A) nel segmento di riorganizzazione; rifornimento alleato
+a ovest. Non realizzati: le regole facoltative 15.3-15.6 e le varianti del capitolo 16; i capi non dimezzano il
+movimento quando danno il comando (10.1C); le uscite della campagna non controllano rifornimento e capi usciti
+(22.4B).
 
 ## Prove
 

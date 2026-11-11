@@ -63,7 +63,8 @@ static func costo_terreno(t: String, tipo: String, demoralizzato := false) -> fl
 		"castello":
 			return 2.0
 		"bosco", "palude":
-			return 4.0 if (cav or demoralizzato) else 2.0
+			# 13.2: la demoralizzazione cambia solo il costo del terreno aperto
+			return 4.0 if cav else 2.0
 	return 999.0
 
 static func colonna(att: float, dif: float) -> int:

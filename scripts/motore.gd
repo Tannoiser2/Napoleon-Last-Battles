@@ -246,7 +246,8 @@ func livello_folio(es: String, dis := false) -> int:
 						occ += 3
 				v -= occ
 			elif es == "FR" and not dis:
-				v = 55
+				# 18.3A: i Francesi possono demoralizzarsi solo finché i Prussiani non lo sono
+				v = 999 if s["dem"].get("PR", false) else 35
 		"quatrebras":
 			if es == "FR" and not dis:
 				v = 10 if tl in ["1400", "1500"] else 25
@@ -273,7 +274,43 @@ func livello_corpo(g: String) -> int:
 	if p[0] == "AA":
 		return int(Dati.DEM_NAZIONI.get(p[1], 99))
 	var base: int = int(Dati.DEM_CORPI.get(p[0], {}).get(p[1], 99))
-	return base - int(s["mod"].get("lv:" + g, 0))
+	return base - int(s["mod"].get("lv:" + g, 0)) - (2 if s.get("vicini_dem", {}).has(g) else 0)
+
+## 22.5A: nel segmento di riorganizzazione il livello di un corpo scende di 2 se il suo ufficiale è entro
+## cinque esagoni da un ufficiale amico demoralizzato (a catena). Esclusi i corpi di cavalleria francesi
+## e le nazionalità alleate. L'effetto vale fino al segmento successivo dello stesso schieramento.
+func _vicinanza_demoralizzati(lato: int) -> void:
+	var vd: Dictionary = s.get("vicini_dem", {})
+	for g in vd.keys():
+		var es := String(g).split(":")[0]
+		if (es == "FR") == (lato == FR):
+			vd.erase(g)
+	s["vicini_dem"] = vd
+	var es_l := ["FR"] if lato == FR else ["PR"]
+	var cambiato := true
+	var giri := 0
+	while cambiato and giri < 10:
+		cambiato = false
+		giri += 1
+		for c in s["capi"]:
+			var k: Dictionary = catalogo["capi"][c]
+			if not (k["es"] in es_l) or int(k["cap"]) > 0 or s["capi"][c]["st"] != "mappa":
+				continue
+			var g := "%s:%s" % [k["es"], k["des"]]
+			if str(k["des"]).ends_with("C") or bool(s["dem"].get(g, false)) or vd.has(g):
+				continue
+			for c2 in s["capi"]:
+				var k2: Dictionary = catalogo["capi"][c2]
+				if c2 == c or k2["es"] != k["es"] or int(k2["cap"]) > 0 or s["capi"][c2]["st"] != "mappa" or str(k2["des"]).ends_with("C"):
+					continue
+				if bool(s["dem"].get("%s:%s" % [k2["es"], k2["des"]], false)) and Mappa.distanza(s["capi"][c]["h"], s["capi"][c2]["h"]) <= 5:
+					vd[g] = true
+					if perdite_corpo(g) >= livello_corpo(g):
+						s["dem"][g] = true
+						_annuncio("%s vacilla vicino a un corpo demoralizzato ed è demoralizzato" % _nome_gruppo(g))
+						cambiato = true
+					break
+	s["vicini_dem"] = vd
 
 func perdite_corpo(g: String) -> int:
 	if g.begins_with("AA:"):
@@ -338,6 +375,7 @@ func _inizio_turno_giocatore() -> void:
 			_rifornimento()
 		if not notte():
 			_riorganizza(int(s["lato"]))
+		_vicinanza_demoralizzati(int(s["lato"]))
 		_calcola_comando(int(s["lato"]))
 		_controlla_demoralizzazione()
 	var arrivi := 0
@@ -782,7 +820,7 @@ func _riorganizza(lato: int) -> void:
 	var per_uff := {}
 	for id in s["unita"]:
 		var u: Dictionary = s["unita"][id]
-		if u["st"] != "riorg" or lato_di(id) != lato or int(u.get("dal", 99999)) >= int(s["turno"]):
+		if u["st"] != "riorg" or lato_di(id) != lato or int(u.get("dal", 99999)) + 1 >= int(s["turno"]):
 			continue
 		var o := ufficiale_di(id)
 		if o == "" or s["capi"][o]["st"] != "mappa":
@@ -853,7 +891,7 @@ func _fonte_rifornimento(es: String, h: String) -> bool:
 		"PR":
 			return b == "e"
 		"AA":
-			return b == "n" or b == "o"
+			return b == "o"
 	return false
 
 static var _strade := {}
@@ -946,11 +984,10 @@ func linea_di_tiro(a: String, b: String) -> bool:
 		return true
 	return comuni.size() > 0
 
-## Forza in attacco di un'unità (cavalleria dimezzata in bosco o palude)
-func forza_att(id: String) -> float:
+## Forza in attacco di un'unità (la cavalleria è dimezzata se attacca dentro bosco o palude)
+func forza_att(id: String, bersaglio := "") -> float:
 	var f := float(forza(id))
-	var h: String = str(s["unita"][id].get("h", ""))
-	if tipo(id) == "C" and Mappa.esagoni.has(h) and Mappa.terreno(h) in ["bosco", "palude"]:
+	if tipo(id) == "C" and bersaglio != "" and Mappa.esagoni.has(bersaglio) and Mappa.terreno(bersaglio) in ["bosco", "palude"]:
 		f = ceilf(f / 2.0)
 	return f
 
@@ -1031,21 +1068,33 @@ func valuta_attacco(d: Dictionary) -> Dictionary:
 					r["motivo"] = "%s è fuori comando" % nome(id)
 					return r
 				ooc = true
-	# forza
+	# forza (TEC: la cavalleria che attacca dentro bosco o palude è dimezzata; 6.3B: si sommano le forze
+	# da dimezzare e si arrotonda una volta sola, per eccesso)
 	var att := 0.0
+	var da_dimezzare := 0.0
+	var dentro_bosco := false
+	for h in dif_hex:
+		if Mappa.terreno(h) in ["bosco", "palude"]:
+			dentro_bosco = true
 	var tipi := {}
 	for id in tutti:
-		att += forza_att(id)
+		if tipo(id) == "C" and dentro_bosco:
+			da_dimezzare += float(forza(id))
+		else:
+			att += float(forza(id))
 		tipi[tipo(id).substr(0, 1) if tipo(id) != "HA" else "A"] = true
+	att += ceilf(da_dimezzare / 2.0)
 	var dif := 0.0
 	var castello_fant := false
 	for h in dif_hex:
 		var base := 0.0
+		var cav_bosco := 0.0
 		for id in unita_in(h, 1 - lato):
-			var f := float(forza(id))
 			if tipo(id) == "C" and Mappa.terreno(h) in ["bosco", "palude"]:
-				f = ceilf(f / 2.0)
-			base += f
+				cav_bosco += float(forza(id))
+			else:
+				base += float(forza(id))
+		base += ceilf(cav_bosco / 2.0)
 		var molt := 1.0
 		match Mappa.terreno(h):
 			"citta":
@@ -1062,7 +1111,7 @@ func valuta_attacco(d: Dictionary) -> Dictionary:
 		dif += base * molt
 		if Mappa.terreno(h) == "castello":
 			for id in unita_in(h, 1 - lato):
-				if tipo(id) == "I" and not dem_unita(id) and (not campagna() or in_comando_dif(id)):
+				if tipo(id) == "I" and not dem_unita(id):
 					castello_fant = true
 	var col := Dati.colonna(att, dif)
 	if s["opzioni"].get("armi_combinate", true) and dif_hex.size() == 1 and tipi.has("I") and tipi.has("C") and tipi.has("A"):
@@ -1203,7 +1252,7 @@ func _attacco(d: Dictionary) -> bool:
 		if unita_in(h).is_empty() and Mappa.terreno(h) != "castello":
 			vuoti.append(h)
 	if not vuoti.is_empty():
-		if ris in ["DE", "DR", "EX"]:
+		if ris in ["DE", "DR", "EX"] and not v["ooc"]:
 			vincitore = lato
 			for id in v["adiac"]:
 				if s["unita"][id]["st"] == "mappa" and not dem_unita(id):

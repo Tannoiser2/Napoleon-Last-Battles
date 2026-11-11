@@ -454,7 +454,7 @@ func _pianifica_attacchi(lato: int, mobili: Dictionary, nem: Array) -> Array:
 		for v in Mappa.vicini(t):
 			for id in m.unita_in(v, lato):
 				if not mobili.has(id) and not usate.has(id):
-					forza += m.forza_att(id)
+					forza += m.forza_att(id, t)
 		var mosse := []
 		var posti := {}
 		var cand := []
@@ -493,7 +493,7 @@ func _pianifica_attacchi(lato: int, mobili: Dictionary, nem: Array) -> Array:
 				continue
 			presi[id] = true
 			posti[h] = posti.get(h, 0) + 1
-			forza += m.forza_att(id)
+			forza += m.forza_att(id, t)
 			tipi[m.tipo(id).substr(0, 1)] = true
 			mosse.append({"a": "entra" if mobili[id]["arr"] else "muovi", "u": id, "h": h})
 			if Dati.colonna(forza, dif) >= soglia_min + 1:
