@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+Dopo questo passo: correggi_terreni.py, poi ritocca_case.py sull'immagine intera (toglie le case dipinte
+negli esagoni che nell'originale sono aperti) e di nuovo il taglio in tasselli.
 """Mappa ridisegnata: unisce le quattro mappe nuove (cartella NUOVE, una per Folio) in un'unica texture
 allineata alla griglia del gioco e aggiunge a mappa.json le quote degli esagoni per la mappa 3D.
 
