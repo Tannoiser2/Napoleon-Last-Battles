@@ -48,6 +48,7 @@ var nodo_stato: Node3D        # segnalini D / FC sopra le pile
 var nodi_pezzi := {}          # id -> nodo della pedina (resta lo stesso e si sposta animato)
 var percorsi := {}            # id -> esagoni attraversati dall'ultima mossa (per lo scorrimento)
 var mappa_nuova := true       # mappa ridisegnata in 3D; false = scansioni originali piatte
+var pedine_2015 := false      # pedine dell'edizione 2015 (Decision Games) al posto di quelle originali
 const SALVA_OPZIONI := "user://opzioni_napoleonlb.json"
 var cache_mat := {}
 
@@ -237,9 +238,12 @@ func immagine(path: String, w: float, h: float) -> TextureRect:
 	return t
 
 func img_pedina(id: String, ridotta := false) -> String:
-	if ridotta and ResourceLoader.exists("res://assets/pedine/%sr.webp" % id):
-		return "res://assets/pedine/%sr.webp" % id
-	return "res://assets/pedine/%s.webp" % id
+	var cartella := "res://assets/pedine2015/" if pedine_2015 else "res://assets/pedine/"
+	if pedine_2015 and not ResourceLoader.exists(cartella + id + ".webp"):
+		cartella = "res://assets/pedine/"
+	if ridotta and ResourceLoader.exists(cartella + id + "r.webp"):
+		return cartella + id + "r.webp"
+	return cartella + id + ".webp"
 
 func pulisci() -> void:
 	for c in schermo.get_children():
@@ -316,13 +320,14 @@ func _carica_opzioni() -> void:
 		var d = JSON.parse_string(FileAccess.get_file_as_string(SALVA_OPZIONI))
 		if d is Dictionary:
 			mappa_nuova = bool(d.get("mappa_nuova", true))
+			pedine_2015 = bool(d.get("pedine_2015", false))
 	if Mappa.tasselli_nuova.is_empty():
 		mappa_nuova = false
 
 func _salva_opzioni() -> void:
 	var f := FileAccess.open(SALVA_OPZIONI, FileAccess.WRITE)
 	if f:
-		f.store_string(JSON.stringify({"mappa_nuova": mappa_nuova}))
+		f.store_string(JSON.stringify({"mappa_nuova": mappa_nuova, "pedine_2015": pedine_2015}))
 
 func _cambia_mappa() -> void:
 	mappa_nuova = not mappa_nuova
@@ -331,6 +336,12 @@ func _cambia_mappa() -> void:
 	if m != null:
 		_aggiorna_pezzi()
 		_aggiorna_evidenze()
+
+func _cambia_pedine() -> void:
+	pedine_2015 = not pedine_2015
+	_salva_opzioni()
+	if m != null:
+		_aggiorna_tutto()
 
 func _costruisci_mappa() -> void:
 	for c in nodo_mappa.get_children():
@@ -1194,6 +1205,9 @@ func mostra_menu() -> void:
 	v.add_child(bottone("Riprendi la partita salvata su Firebase", _continua_firebase, 20))
 	v.add_child(bottone("Gioca online con un amico", _menu_online, 22))
 	v.add_child(bottone("Le regole in breve", _menu_regole, 20))
+	v.add_child(bottone("Pedine: " + ("edizione 2015" if pedine_2015 else "originali SPI") + " (tocca per cambiare)", func():
+		_cambia_pedine()
+		mostra_menu(), 18))
 	var nota := etichetta("Quadrigioco SPI del 1976 (Kevin Zucker), regole riviste. Versione digitale per uso personale, dal modulo Tabletop Simulator.", F_CORSIVO, 16, C_SPENTO)
 	nota.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(nota)
@@ -1694,6 +1708,9 @@ func _menu_partita() -> void:
 		v.add_child(bottone("Mappa: " + ("ridisegnata in 3D (passa all'originale)" if mappa_nuova else "originale (passa a quella ridisegnata in 3D)"), func():
 			_chiudi_popup()
 			_cambia_mappa(), 18))
+	v.add_child(bottone("Pedine: " + ("edizione 2015 (passa alle originali)" if pedine_2015 else "originali (passa all'edizione 2015)"), func():
+		_chiudi_popup()
+		_cambia_pedine(), 18))
 	v.add_child(bottone("Inquadra la battaglia", func():
 		_chiudi_popup()
 		_inquadra_scenario(), 18))

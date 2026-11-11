@@ -22,6 +22,12 @@ Si gioca qui: https://tannoiser2.github.io/Napoleon-Last-Battles/ (e nella ludot
   simboli di schieramento stampati in blu erano stati letti come paesi, laghi o corsi d'acqua (59 esagoni e 66
   lati, corretti con `tools/estrazione/correggi_terreni.py` e `correzioni_terreni.json`; il lago Materne di Quatre
   Bras ora è un lago).
+- **Pedine dell'edizione 2015** (Decision Games, grafica di Trevor Holman): un'opzione nel menu principale e nel
+  Menu della partita sostituisce le pedine originali. Ritagliate dai quattro fogli (fronte e retro, il retro è la
+  forza ridotta) con `tools/pedine2015/genera.py`; gli abbinamenti unità-pedina sono in
+  `tools/pedine2015/abbinamenti.txt`. Le regole restano quelle del gioco: dove la pedina 2015 riporta valori diversi
+  (Friant 7 invece di 6, Roguet 6 invece di 7, d'Hurbal 4 invece di 5, Gengoult 5 invece di 6, Doguereau 4 invece
+  di 5, Jacquinot movimento 6 invece di 7, 6ª Landwehr Kurmark 3 invece di 2) contano i valori del gioco.
 - **Pedine**: le 205 pedine originali col loro retro a forza ridotta e i 31 capi (`assets/pedine/`,
   `assets/dati/catalogo.json`); gli schieramenti dei Folio vengono dalle posizioni del modulo TTS, quelli della
   campagna dall'elenco `NLB_Campaign_Setup.pdf` e dalle tracce dei turni stampate sulle mappe.

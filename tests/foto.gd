@@ -23,6 +23,8 @@ func _run():
 		quit(); return
 	main.scelta_scen = sc
 	main.scelta_modo = "ia"
+	if "--pedine2015" in OS.get_cmdline_user_args():
+		main.pedine_2015 = true
 	main.scelta_lato = 1 if modo == "attacco_ia" else 0
 	main._avvia_locale()
 	if modo == "attacco_ia":
