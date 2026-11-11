@@ -69,6 +69,8 @@ func nuova(cfg: Dictionary) -> void:
 	if campagna():
 		for c in scen["capi"]:
 			s["capi"][c["c"]] = {"h": c["h"], "st": "mappa"}
+	elif opz("capi_comando"):
+		_piazza_capi()
 	_ricalcola()
 	_log("[b]%s[/b] — %s, %s." % [scen["titolo"], scen["sotto"], scen["data"]])
 	_inizio_turno_giocatore()
@@ -86,8 +88,12 @@ func opz(k: String) -> bool:
 	if not bool(s["opzioni"].get(k, false)):
 		return false
 	match k:
-		"partenza", "avanzata_capi", "alba", "pioggia_mod", "bonus_capi", "fc_mod", "oos_mod":
+		"partenza", "alba", "pioggia_mod", "oos_mod":
 			return campagna()
+		"capi_comando":
+			return not campagna()
+		"avanzata_capi", "bonus_capi", "fc_mod":
+			return comando()
 		"effetti_comb":
 			return true
 		"armi_combinate":
@@ -108,6 +114,55 @@ func importa(d: Dictionary) -> void:
 
 func campagna() -> bool:
 	return s["scen"] == "campagna"
+
+## Battaglie con le regole 10-11: gli ufficiali con un'unità del loro corpo (la più vicina al centro del corpo),
+## i comandanti presenti alla battaglia con un'unità vicina al centro del loro esercito (10.1A).
+## Chi ha tutte le unità tra i rinforzi entra con il primo rinforzo.
+const COMANDANTI_BATTAGLIA := {"ligny": ["c215", "c216", "c210"], "quatrebras": ["c217", "c202", "c205"],
+	"wavre": ["c216"], "bellealliance": ["c215", "c217", "c202", "c205", "c210"]}
+
+func _piazza_capi() -> void:
+	for c in catalogo["capi"]:
+		var k: Dictionary = catalogo["capi"][c]
+		var gruppo := []
+		if int(k["cap"]) > 0:
+			if not (COMANDANTI_BATTAGLIA.get(s["scen"], []) as Array).has(c):
+				continue
+			for id in s["unita"]:
+				if esercito(id) == k["es"]:
+					gruppo.append(id)
+		else:
+			s["capi"][c] = {"h": "", "st": "fuori"}    # provvisorio, per ufficiale_di
+			for id in s["unita"]:
+				if esercito(id) == k["es"] and ufficiale_di(id) == c:
+					gruppo.append(id)
+			s["capi"].erase(c)
+		if gruppo.is_empty():
+			continue
+		var in_mappa := gruppo.filter(func(id): return s["unita"][id]["st"] == "mappa")
+		if in_mappa.is_empty():
+			var primo: String = gruppo[0]
+			for id in gruppo:
+				if int(s["unita"][id]["t"]) < int(s["unita"][primo]["t"]):
+					primo = id
+			s["capi"][c] = {"h": "", "st": "arrivo", "t": int(s["unita"][primo]["t"]), "e": s["unita"][primo]["e"]}
+			continue
+		var cx := 0.0
+		var cy := 0.0
+		for id in in_mappa:
+			var p: Vector2 = Mappa.pos(s["unita"][id]["h"])
+			cx += p.x
+			cy += p.y
+		var centro := Vector2(cx, cy) / float(in_mappa.size())
+		var best: String = in_mappa[0]
+		for id in in_mappa:
+			if Mappa.pos(s["unita"][id]["h"]).distance_to(centro) < Mappa.pos(s["unita"][best]["h"]).distance_to(centro):
+				best = id
+		s["capi"][c] = {"h": s["unita"][best]["h"], "st": "mappa"}
+
+## Capi e comando in gioco: sempre nella campagna, a scelta (10-11) nelle battaglie
+func comando() -> bool:
+	return campagna() or opz("capi_comando")
 
 func finita() -> bool:
 	return not s["esito"].is_empty()
@@ -427,6 +482,8 @@ func _inizio_turno_giocatore() -> void:
 		_vicinanza_demoralizzati(int(s["lato"]))
 		_calcola_comando(int(s["lato"]))
 		_controlla_demoralizzazione()
+	elif comando():
+		_calcola_comando(int(s["lato"]))
 	var arrivi := 0
 	for id in s["unita"]:
 		var u: Dictionary = s["unita"][id]
@@ -617,14 +674,16 @@ func raggiungibili(id: String, partenza := "", costo0 := 0.0) -> Dictionary:
 	var tp := "C" if leader else tipo(id)
 	var dem := (not leader) and campagna() and dem_unita(id)
 	var mpa: float = float(10 if leader and int(cat(id)["cap"]) > 0 else (6 if leader else ma(id)))
-	if leader and campagna() and s["capi"][id].get("dem", false):
+	if leader and comando() and s["capi"][id].get("dem", false):
 		dem = true
 	if leader and campagna() and bool(s["dem"].get("%s:%s" % [cat(id)["es"], cat(id)["des"]], false)):
+		dem = true
+	if leader and not campagna() and bool(s["dem"].get(cat(id)["es"], false)):
 		dem = true
 	# 10.1C: il capo che dà il comando in questo turno ha metà dei punti movimento
 	if leader and s.get("comando_dato", {}).has(id):
 		mpa = floorf(mpa / 2.0)
-	var ooc := (not leader) and campagna() and not in_comando(id)
+	var ooc := (not leader) and comando() and not in_comando(id)
 	# 16.15: fuori comando paga 2 per l'aperto ma entra nelle zone nemiche
 	var ooc_mod := ooc and opz("fc_mod")
 	if ooc_mod:
@@ -878,7 +937,7 @@ func _esci_capo(d: Dictionary) -> bool:
 # Comando (campagna)
 
 func in_comando(id: String) -> bool:
-	if not campagna():
+	if not comando():
 		return true
 	if notte():
 		return false
@@ -967,6 +1026,15 @@ func _calcola_comando(lato: int) -> void:
 				diretti[x[2]] = true
 				s["comando_dato"][cm] = true
 				k += 1
+		# battaglia senza comandante per questo esercito (Prussiani a Wavre): gli ufficiali comandano da sé
+		if not campagna():
+			var ha_comandante := false
+			for c in s["capi"]:
+				if catalogo["capi"][c]["es"] == es and int(catalogo["capi"][c]["cap"]) > 0:
+					ha_comandante = true
+			if not ha_comandante:
+				for des in ufficiali:
+					ufficiali_ok[des] = true
 		for des in ufficiali_ok:
 			s["comando"][ufficiali[des]] = true
 			var rg3 := _raggio_comando(s["capi"][ufficiali[des]]["h"], lato, 3)
@@ -1090,22 +1158,37 @@ func _ha_strada(h: String) -> bool:
 				_strade[p[1]] = true
 	return _strade.has(h)
 
+## Rete stradale collegata a un bordo di rifornimento valido per l'esercito (14.1)
+func rete_rifornimento(es: String) -> Dictionary:
+	var lato := FR if es == "FR" else AL
+	var rete := {}
+	var coda := []
+	for h in Mappa.esagoni:
+		if _fonte_rifornimento(es, h) and not nemico_in(h, lato):
+			rete[h] = true
+			coda.append(h)
+	while not coda.is_empty():
+		var h: String = coda.pop_back()
+		for v in Mappa.vicini(h):
+			if not rete.has(v) and _ha_strada(v) and Mappa.passabile(h, v) and not nemico_in(v, lato):
+				rete[v] = true
+				coda.append(v)
+	return rete
+
+## Stato del rifornimento in questo momento (per la mappa): unità -> true se rifornita
+func rifornite(es: String) -> Dictionary:
+	var rete := rete_rifornimento(es)
+	var out := {}
+	for id in s["unita"]:
+		if esercito(id) == es and s["unita"][id]["st"] == "mappa":
+			out[id] = _traccia_rif(rete, s["unita"][id]["h"], lato_di(id))
+	return out
+
 func _rifornimento() -> void:
+	_annuncio("Controllo del rifornimento (14.0)")
 	for es in ["FR", "PR", "AA"]:
 		var lato := FR if es == "FR" else AL
-		# rete stradale collegata a un bordo valido
-		var rete := {}
-		var coda := []
-		for h in Mappa.esagoni:
-			if _fonte_rifornimento(es, h) and not nemico_in(h, lato):
-				rete[h] = true
-				coda.append(h)
-		while not coda.is_empty():
-			var h: String = coda.pop_back()
-			for v in Mappa.vicini(h):
-				if not rete.has(v) and _ha_strada(v) and Mappa.passabile(h, v) and not nemico_in(v, lato):
-					rete[v] = true
-					coda.append(v)
+		var rete := rete_rifornimento(es)
 		if es == "FR" and campagna():
 			# 22.4B: le unità uscite da 0605 contano solo se da lì passa una linea di rifornimento francese
 			s["usc_rif"] = _traccia_rif(rete, "0605", lato)
@@ -1254,9 +1337,9 @@ func valuta_attacco(d: Dictionary) -> Dictionary:
 		return r
 	var note := []          # modificatori applicati, in parole
 	var fatt: Dictionary = d.get("fattori", {})   # 16.18: unità senza rifornimento a metà forza
-	# fuori comando (campagna): 11.3 non attacca se non è già a contatto; 16.15 attacca normalmente
+	# fuori comando: 11.3 non attacca se non è già a contatto; 16.15 attacca normalmente
 	var ooc := false
-	if campagna():
+	if comando():
 		for id in tutti:
 			if not in_comando(id):
 				if not in_ezoc(id) and not opz("fc_mod"):
@@ -1527,7 +1610,7 @@ func _attacco(d: Dictionary) -> bool:
 	var orig := ris
 	if v["castello"] and ris == "DR":
 		ris = "NE"
-	var tutti_ooc_dif := campagna()
+	var tutti_ooc_dif := comando()
 	for id in v["difensori"]:
 		if in_comando_dif(id):
 			tutti_ooc_dif = false
@@ -1693,7 +1776,7 @@ func _attacco(d: Dictionary) -> bool:
 		elif ris in ["AE", "AR"]:
 			vincitore = 1 - lato
 			for id in v["difensori"]:
-				if s["unita"][id]["st"] == "mappa" and not dem_unita(id) and (not campagna() or in_comando_dif(id)):
+				if s["unita"][id]["st"] == "mappa" and not dem_unita(id) and (not comando() or in_comando_dif(id)):
 					for h in vuoti:
 						if Mappa.adiacenti(s["unita"][id]["h"], h) and Mappa.passabile(s["unita"][id]["h"], h):
 							cand.append([id, h])

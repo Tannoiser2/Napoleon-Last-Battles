@@ -418,8 +418,8 @@ func _pianifica_movimento(lato: int) -> Array:
 		_forza_piano[best] = _forza_piano.get(best, 0.0) + m.forza(id)
 		if mobili[id]["da"] != "":
 			_forza_piano[mobili[id]["da"]] = _forza_piano.get(mobili[id]["da"], 0.0) - m.forza(id)
-	# 3. capi (campagna)
-	if m.campagna():
+	# 3. capi (campagna, o battaglia con le regole 10-11)
+	if m.comando():
 		out.append_array(_muovi_capi(lato))
 	return out
 
@@ -695,8 +695,8 @@ func _miglior_posto(id: String, lato: int, info: Dictionary, nem: Array) -> Stri
 		for x in Mappa.vicini(h):
 			if Mappa.terreno(x) == "castello" and m.lato_hex(x) == 1 - lato:
 				v -= 4.0
-		# campagna: restare entro 3 esagoni dal proprio ufficiale (comando)
-		if m.campagna():
+		# comando: restare entro 3 esagoni dal proprio ufficiale
+		if m.comando():
 			var uf := m.ufficiale_di(id)
 			if uf != "" and m.s["capi"][uf]["st"] == "mappa":
 				var du := Mappa.distanza(h, m.s["capi"][uf]["h"])

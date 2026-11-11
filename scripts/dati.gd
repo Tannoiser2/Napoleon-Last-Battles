@@ -38,6 +38,7 @@ const NOMI_TERRENO := {
 ## Regole facoltative (15.x) e varianti (16.x) della 4ª edizione: chiave, titolo, spiegazione, dove valgono
 ## ("tutti", "campagna" = solo dove ci sono i capi, "guardia" = dove c'è la Guardia)
 const OPZIONI := [
+	["capi_comando", "10-11 Capi e comando", "Nelle battaglie singole entrano i capi (con le loro unità, i comandanti al centro del proprio esercito) e vale il comando: chi è oltre 3 esagoni dal suo ufficiale o 5 dal comandante è fuori comando.", "battaglie"],
 	["armi_combinate", "15.1 Armi combinate", "Fanteria, cavalleria e artiglieria contro lo stesso esagono: +1 colonna.", "tutti"],
 	["guardia", "15.2 Guardia imperiale", "Se un attacco della fanteria della Guardia fallisce (AE, AR, EX) il morale francese scende di 20 (nella campagna i corpi vicini di 7).", "guardia"],
 	["ritirata_cav", "15.3 Ritirata a cavallo", "All'inizio di ogni fase di combattimento la cavalleria e l'artiglieria a cavallo a contatto, se non toccano cavalleria nemica, possono ritirarsi di un esagono.", "tutti"],

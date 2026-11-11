@@ -105,6 +105,13 @@ solo nella campagna. Non realizzate: 16.1 pedine sostitutive, 16.3 osservazione,
 16.8 carica, 16.10 artiglieria pesante, 16.11 guarnigioni, 16.14 quartier generale, 16.16 riorganizzazione
 modificata, 16.17 salmerie (servono pedine e segnalini che il gioco non ha, o la visibilità nascosta).
 
+Capi, comando e rifornimento: nella campagna sono sempre in gioco. Nelle quattro battaglie le regole V6F usano
+solo 1.0-9.0 e lasciano facoltativi capi e comando (10.0-11.0): si attivano con «10-11 Capi e comando»; ogni
+ufficiale parte con un'unità del suo corpo, i comandanti presenti alla battaglia al centro del loro esercito,
+chi arriva coi rinforzi entra con loro. Il rifornimento (14.0) vale solo nella campagna: si controlla una volta al
+giorno, e il tasto «Rifornimento» mostra in ogni momento la rete stradale collegata al bordo amico e cerchia in
+arancione le unità che ne sarebbero tagliate fuori.
+
 Pannello di combattimento: in alto le due forze, sotto le unità coinvolte, poi ogni modificatore in parole
 (terreno, ruscelli, dimezzamenti, armi combinate, capi...), infine colonna, «Attacca!» e «Annulla». Nella
 campagna il tasto «Comando» mostra le aree di comando (5 esagoni i comandanti, 3 gli ufficiali) e cerchia di

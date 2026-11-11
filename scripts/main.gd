@@ -88,7 +88,8 @@ var carattere_ia := 1
 var sel_hex := ""
 var sel_unita := ""
 var sel_capo := ""
-var vedi_comando := false     # campagna: mostra le aree di comando di tutti i capi
+var vedi_comando := false
+var vedi_rif := false         # campagna: rete di rifornimento e unità che ne sono tagliate fuori     # campagna: mostra le aree di comando di tutti i capi
 var rag := {}
 var hover := ""
 var sel_dif: Array = []
@@ -629,7 +630,7 @@ func _aggiorna_pezzi() -> void:
 			if id.begins_with("u"):
 				if m.dem_unita(id):
 					demo = true
-				if m.campagna() and m.lato_di(id) == int(m.s["lato"]) and not m.in_comando(id) and not m.notte():
+				if m.comando() and m.lato_di(id) == int(m.s["lato"]) and not m.in_comando(id) and not m.notte():
 					ooc = true
 		if demo or ooc:
 			var lb := Label3D.new()
@@ -958,6 +959,7 @@ func _aggiorna_evidenze() -> void:
 		a.position = _v3(sel_hex)
 		nodo_evid.add_child(a)
 	_evidenzia_comando()
+	_evidenzia_rifornimento()
 	if _fase_mia("combattimento"):
 		var ob := m.obblighi()
 		for h in ob["nemici"]:
@@ -1015,7 +1017,7 @@ func _aggiorna_evidenze() -> void:
 ## (o quelli nell'esagono scelto) sempre; con il tasto Comando tutti i capi dello schieramento di turno,
 ## e un anello rosso sulle unità fuori comando.
 func _evidenzia_comando() -> void:
-	if m == null or not m.campagna():
+	if m == null or not m.comando():
 		return
 	var capi := []
 	if sel_capo != "":
@@ -1047,6 +1049,28 @@ func _evidenzia_comando() -> void:
 				var a := _anello(Color(0.9, 0.1, 0.05), 0.4)
 				a.position = _v3(m.s["unita"][id]["h"])
 				nodo_evid.add_child(a)
+
+## Rifornimento (campagna, 14.0): strade collegate al bordo amico in verde, unità che oggi non potrebbero
+## tracciare la linea (5 esagoni fino alla rete) cerchiate in arancione. Il controllo vero si fa una volta al
+## giorno, al primo turno di luce: chi è tagliato fuori allora viene eliminato.
+func _evidenzia_rifornimento() -> void:
+	if m == null or not m.campagna() or not vedi_rif:
+		return
+	var lato := int(m.s["lato"])
+	var eserciti := ["FR"] if lato == Motore.FR else ["PR", "AA"]
+	var colori := {"FR": Color(0.25, 0.45, 0.95, 0.30), "PR": Color(0.2, 0.2, 0.2, 0.30), "AA": Color(0.9, 0.15, 0.1, 0.26)}
+	for es in eserciti:
+		var rete: Dictionary = m.rete_rifornimento(es)
+		for h in rete:
+			var e := _esagono_mesh(colori[es])
+			e.position = _v3(h, 0.006)
+			nodo_evid.add_child(e)
+		for id in m.s["unita"]:
+			if m.esercito(id) == es and m.s["unita"][id]["st"] == "mappa":
+				if m.s["unita"][id].get("oos", false) or not m._traccia_rif(rete, m.s["unita"][id]["h"], lato):
+					var a := _anello(Color(1.0, 0.55, 0.0), 0.42)
+					a.position = _v3(m.s["unita"][id]["h"])
+					nodo_evid.add_child(a)
 
 # ---------- input sulla mappa (mouse e tocco: un dito sposta, due dita pizzicano e ruotano)
 
@@ -1480,7 +1504,7 @@ func _menu_scheda() -> void:
 	var attive := []
 	var disponibili := 0
 	for x in Dati.OPZIONI:
-		if (x[3] == "campagna" and k != "campagna") or (x[3] == "guardia" and not _ha_guardia(k)):
+		if (x[3] == "campagna" and k != "campagna") or (x[3] == "guardia" and not _ha_guardia(k)) or (x[3] == "battaglie" and k == "campagna"):
 			continue
 		disponibili += 1
 		if opz_scelte.get(x[0], false):
@@ -1498,6 +1522,9 @@ func _menu_scheda() -> void:
 					continue
 			"guardia":
 				if not _ha_guardia(k):
+					continue
+			"battaglie":
+				if k == "campagna":
 					continue
 		var cb := CheckBox.new()
 		cb.text = x[1]
@@ -1862,13 +1889,20 @@ func _costruisci_hud() -> void:
 	hb.add_child(lbl_fase)
 	lbl_pv = riga_lbl("", F_TESTO, 19, C_ORO)
 	hb.add_child(lbl_pv)
-	if m.campagna():
+	if m.comando():
 		var bc := bottone("Comando", func():
 			vedi_comando = not vedi_comando
 			_aggiorna_evidenze(), 16)
 		bc.toggle_mode = true
 		bc.button_pressed = vedi_comando
 		hb.add_child(bc)
+	if m.campagna():
+		var br := bottone("Rifornimento", func():
+			vedi_rif = not vedi_rif
+			_aggiorna_evidenze(), 16)
+		br.toggle_mode = true
+		br.button_pressed = vedi_rif
+		hb.add_child(br)
 	for b in [["Registro", _mostra_diario], ["Plance", _plance_popup], ["Tabelle", _tabelle_popup], ["Vista", _cambia_vista], ["Regole", _regole_popup], ["Menu", _menu_partita]]:
 		var bt := bottone(b[0], b[1], 16)
 		hb.add_child(bt)
@@ -2286,8 +2320,10 @@ func _riga_unita(id: String, cb := Callable()) -> Control:
 		extra.append("ha attaccato")
 	if m.dem_unita(id):
 		extra.append("demoralizzata")
-	if m.campagna() and u["st"] == "mappa" and m.lato_di(id) == int(m.s["lato"]) and not m.in_comando(id):
+	if m.comando() and u["st"] == "mappa" and m.lato_di(id) == int(m.s["lato"]) and not m.in_comando(id):
 		extra.append("fuori comando")
+	if u.get("oos", false):
+		extra.append("senza rifornimento")
 	var testo := "%s  %d-%d\n%s, %s%s" % [m.nome(id), m.forza(id), m.ma(id), Dati.TIPI[c["t"]], Dati.NAZ[c["naz"]]["nome"], (" · " + ", ".join(extra)) if not extra.is_empty() else ""]
 	if cb.is_valid():
 		var b := Button.new()
@@ -2364,7 +2400,7 @@ func _pannello_movimento(lato: int) -> void:
 			pannello_info.add_child(_riga_unita(id))
 			if m.in_ezoc(id) and not m.s["unita"][id]["mosso"]:
 				pannello_info.add_child(etichetta("   a contatto col nemico: non può muovere", F_CORSIVO, 15, C_ROSSO))
-	if m.campagna():
+	if m.comando():
 		for c in m.capi_in(sel_hex, lato):
 			var x: String = c
 			if not m.s["capi"][c].get("mosso", false):
@@ -2495,11 +2531,11 @@ func _proponi_attaccanti() -> void:
 			for h in sel_dif:
 				if not Mappa.adiacenti(u["h"], h) or (Mappa.fiume(u["h"], h) and not Mappa.ponte(u["h"], h)):
 					ok = false
-			if ok and (not m.campagna() or m.in_comando(id) or m.in_ezoc(id)):
+			if ok and (not m.comando() or m.in_comando(id) or m.in_ezoc(id)):
 				sel_att[id] = true
 		elif m.tipo(id) in ["A", "HA"]:
 			for h in sel_dif:
-				if m.puo_bombardare(id, h) and (not m.campagna() or m.in_comando(id)):
+				if m.puo_bombardare(id, h) and (not m.comando() or m.in_comando(id)):
 					sel_att[id] = true
 
 func _pannello_combattimento(lato: int) -> void:

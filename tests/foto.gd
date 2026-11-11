@@ -31,6 +31,8 @@ func _run():
 	if "--pedine2015" in OS.get_cmdline_user_args():
 		main.pedine_2015 = true
 	main.scelta_lato = 1 if modo == "attacco_ia" else 0
+	if "--capi" in OS.get_cmdline_user_args():
+		main.opz_scelte["capi_comando"] = true
 	main._avvia_locale()
 	if "--comando" in OS.get_cmdline_user_args():
 		main.vedi_comando = true
