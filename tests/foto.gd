@@ -34,6 +34,9 @@ func _run():
 	if "--capi" in OS.get_cmdline_user_args():
 		main.opz_scelte["capi_comando"] = true
 	main._avvia_locale()
+	if "--rif" in OS.get_cmdline_user_args():
+		main.vedi_rif = true
+		main._aggiorna_evidenze()
 	if "--comando" in OS.get_cmdline_user_args():
 		main.vedi_comando = true
 		main._aggiorna_evidenze()
