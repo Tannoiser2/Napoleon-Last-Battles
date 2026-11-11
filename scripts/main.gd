@@ -246,6 +246,7 @@ func img_pedina(id: String, ridotta := false) -> String:
 	return cartella + id + ".webp"
 
 func pulisci() -> void:
+	menu_aperto = false
 	for c in schermo.get_children():
 		c.queue_free()
 	in_partita = false
@@ -1165,9 +1166,20 @@ func _intestazione(v: VBoxContainer, titolo: String, sotto: String) -> void:
 	s.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(s)
 
+# ---------- schermata iniziale: le quattro battaglie 2x2, la campagna al centro, scelta e opzioni a destra
+
+const POS_SCHEDE := {"bellealliance": Vector2(0, 0), "wavre": Vector2(1, 0), "quatrebras": Vector2(0, 1), "ligny": Vector2(1, 1)}
+var menu_aperto := false
+var menu_tavola: Control
+var menu_destra: VBoxContainer
+var menu_cornici := {}        # scenario -> cornice di selezione
+var menu_img := {}            # scenario -> immagine
+var menu_hover := ""
+
 func mostra_menu() -> void:
 	pulisci()
 	m = null
+	menu_aperto = true
 	_aggiorna_pezzi_vuoti()
 	bersaglio_cam = Vector3(Mappa.larg * SC / 2, 0, Mappa.alt * SC / 2)
 	distanza = 46.0
@@ -1175,40 +1187,290 @@ func mostra_menu() -> void:
 	yaw = 0.3
 	_aggiorna_camera()
 	_sfondo()
-	var box := pannello()
-	box.set_anchors_preset(Control.PRESET_CENTER)
-	box.custom_minimum_size = Vector2(1120, 720)
-	box.position = Vector2(-560, -360)
-	box.add_theme_stylebox_override("panel", stile(C_CARTA, C_BLU, 5, 6))
-	schermo.add_child(box)
-	var hb := HBoxContainer.new()
-	hb.add_theme_constant_override("separation", 26)
-	box.add_child(hb)
-	hb.add_child(immagine("res://assets/ui/copertina.webp", 440, 550))
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 12)
-	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hb.add_child(v)
-	var t := etichetta("NAPOLEON'S\nLAST BATTLES", F_TITOLO, 52, C_BLU)
+	if not get_viewport().size_changed.is_connected(_menu_ridimensiona):
+		get_viewport().size_changed.connect(_menu_ridimensiona)
+	var vp := get_viewport().get_visible_rect().size
+	var margine := 24.0
+	var gap := 12.0
+	# schede alte quanto lo schermo permette, lasciando a destra almeno 520 px per le opzioni;
+	# fra le due righe uno spazio più largo che ospita il medaglione della campagna
+	var asp := 720.0 / 660.0
+	var hc := (vp.y - 2 * margine) / (2.0 + 0.52 * 0.42)
+	var wc := hc * asp
+	var max_w := (vp.x - 2 * margine - 2 * gap - 520.0) / 2.0
+	if wc > max_w:
+		wc = max_w
+		hc = wc / asp
+	var d := hc * 0.52
+	var gv := d * 0.42
+	var tw := 2 * wc + gap
+	var th := 2 * hc + gv
+	var tav := Control.new()
+	tav.position = Vector2(margine, (vp.y - th) / 2.0)
+	tav.size = Vector2(tw, th)
+	tav.custom_minimum_size = tav.size
+	tav.mouse_filter = Control.MOUSE_FILTER_STOP
+	schermo.add_child(tav)
+	menu_tavola = tav
+	menu_cornici = {}
+	menu_img = {}
+	for k in POS_SCHEDE:
+		var c: Vector2 = POS_SCHEDE[k]
+		var r := Rect2(c.x * (wc + gap), c.y * (hc + gv), wc, hc)
+		var tr := TextureRect.new()
+		tr.texture = load("res://assets/ui/menu_%s.webp" % k)
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tr.position = r.position
+		tr.size = r.size
+		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tav.add_child(tr)
+		menu_img[k] = tr
+		var cor := Panel.new()
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0, 0, 0, 0)
+		sb.border_color = C_ORO
+		sb.set_border_width_all(6)
+		sb.set_corner_radius_all(18)
+		cor.add_theme_stylebox_override("panel", sb)
+		cor.position = r.position - Vector2(5, 5)
+		cor.size = r.size + Vector2(10, 10)
+		cor.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tav.add_child(cor)
+		menu_cornici[k] = cor
+	# il medaglione della campagna, al centro dove le quattro battaglie si toccano
+	var med := TextureRect.new()
+	med.texture = load("res://assets/ui/menu_campagna.webp")
+	med.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	med.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	med.size = Vector2(d, d)
+	med.position = Vector2(tw, th) / 2.0 - Vector2(d, d) / 2.0
+	med.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tav.add_child(med)
+	menu_img["campagna"] = med
+	var cc := Panel.new()
+	var sbc := StyleBoxFlat.new()
+	sbc.bg_color = Color(0, 0, 0, 0)
+	sbc.border_color = C_ORO
+	sbc.set_border_width_all(7)
+	sbc.set_corner_radius_all(int(d))
+	cc.add_theme_stylebox_override("panel", sbc)
+	cc.position = med.position - Vector2(6, 6)
+	cc.size = med.size + Vector2(12, 12)
+	cc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tav.add_child(cc)
+	menu_cornici["campagna"] = cc
+	var etc := riga_lbl("La campagna", F_TITOLO, int(maxf(18.0, d * 0.085)), C_CARTA)
+	etc.add_theme_color_override("font_outline_color", C_BLU_SCURO)
+	etc.add_theme_constant_override("outline_size", 8)
+	etc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	etc.position = Vector2(med.position.x, med.position.y + d * 0.79)
+	etc.size = Vector2(d, d * 0.14)
+	etc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tav.add_child(etc)
+	tav.gui_input.connect(func(ev): _menu_input(ev, wc, hc, gap, gv, d))
+	# a destra: informazioni, opzioni e comandi
+	var pn := pannello()
+	pn.add_theme_stylebox_override("panel", stile(C_CARTA, C_BLU, 4, 6))
+	pn.position = Vector2(margine + tw + 2 * gap, margine)
+	tav.position.x = margine
+	pn.size = Vector2(vp.x - pn.position.x - margine, vp.y - 2 * margine)
+	schermo.add_child(pn)
+	var sc := ScrollContainer.new()
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	pn.add_child(sc)
+	menu_destra = VBoxContainer.new()
+	menu_destra.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	menu_destra.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	menu_destra.add_theme_constant_override("separation", 9)
+	sc.add_child(menu_destra)
+	_menu_scheda()
+
+func _menu_ridimensiona() -> void:
+	if menu_aperto and not in_partita and m == null and not popup_aperto:
+		mostra_menu()
+
+func _menu_input(ev: InputEvent, wc: float, hc: float, gap: float, gv: float, d: float) -> void:
+	var p := Vector2.ZERO
+	if ev is InputEventMouse:
+		p = ev.position
+	else:
+		return
+	var centro := Vector2(2 * wc + gap, 2 * hc + gv) / 2.0
+	var k := ""
+	if p.distance_to(centro) <= d / 2.0:
+		k = "campagna"
+	else:
+		var cx := 0 if p.x < wc + gap / 2.0 else 1
+		var cy := 0 if p.y < hc + gv / 2.0 else 1
+		for s in POS_SCHEDE:
+			if POS_SCHEDE[s] == Vector2(cx, cy):
+				k = s
+	if ev is InputEventMouseMotion:
+		if k != menu_hover:
+			menu_hover = k
+			_menu_evidenzia()
+	elif ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT and k != "":
+		if k != scelta_scen:
+			scelta_scen = k
+			_menu_scheda()
+
+func _menu_evidenzia() -> void:
+	for k in menu_img:
+		var sel: bool = k == scelta_scen
+		var tr: TextureRect = menu_img[k]
+		tr.modulate = Color(1, 1, 1) if sel else (Color(0.9, 0.88, 0.84) if k == menu_hover else Color(0.62, 0.6, 0.56))
+		menu_cornici[k].visible = sel
+
+## Avversari di uno scenario, per i tasti di scelta del comando
+func _nome_alleati(k: String) -> String:
+	match k:
+		"ligny", "wavre":
+			return "i Prussiani"
+		"quatrebras":
+			return "gli Anglo-alleati"
+	return "gli Alleati"
+
+## Riepilogo delle forze di uno scenario: unità e punti forza per esercito, quante arrivano come rinforzi
+func _forze_scenario(k: String) -> String:
+	var sc: Dictionary = Motore.scenari[k]
+	var nomi := {"FR": "Armée du Nord", "AA": "Anglo-alleati", "PR": "Prussiani"}
+	var conta := {}
+	for gruppo in ["unita", "rinforzi"]:
+		for e in sc[gruppo]:
+			if e.has("opz"):
+				continue
+			var u: Dictionary = Motore.catalogo["unita"].get(e["u"], {})
+			if u.is_empty():
+				continue
+			var es: String = u["es"]
+			if not conta.has(es):
+				conta[es] = [0, 0, 0]
+			conta[es][0] += 1
+			conta[es][1] += int(u["r"]) if int(e.get("rid", 0)) == 1 else int(u["f"])
+			if gruppo == "rinforzi":
+				conta[es][2] += 1
+	var parti := []
+	for es in ["FR", "AA", "PR"]:
+		if conta.has(es):
+			var c: Array = conta[es]
+			parti.append("%s: %d unità, %d punti forza%s" % [nomi[es], c[0], c[1], (" (%d in arrivo)" % c[2]) if c[2] > 0 else ""])
+	return "In campo. " + ";  ".join(parti) + "."
+
+func _ha_guardia(k: String) -> bool:
+	var sc: Dictionary = Motore.scenari[k]
+	for e in sc["unita"] + sc["rinforzi"]:
+		var id: String = e["u"]
+		if Motore.catalogo["unita"].has(id) and str(Motore.catalogo["unita"][id]["des"]).contains("Gd"):
+			return true
+	return false
+
+func _ha_opzionali(k: String) -> bool:
+	var sc: Dictionary = Motore.scenari[k]
+	for e in sc["unita"] + sc["rinforzi"]:
+		if e.has("opz"):
+			return true
+	return false
+
+func _menu_gruppo(titolo: String, voci: Array, attiva: Callable, scegli: Callable) -> void:
+	var v := menu_destra
+	v.add_child(riga_lbl(titolo, F_GRASSETTO, 19, C_BLU))
+	var fl := HFlowContainer.new()
+	fl.add_theme_constant_override("h_separation", 8)
+	fl.add_theme_constant_override("v_separation", 8)
+	v.add_child(fl)
+	var g := ButtonGroup.new()
+	for o in voci:
+		var b := Button.new()
+		b.text = o[0]
+		b.toggle_mode = true
+		b.button_group = g
+		b.add_theme_font_size_override("font_size", 18)
+		b.button_pressed = attiva.call(o)
+		b.pressed.connect(func(): scegli.call(o))
+		fl.add_child(b)
+
+func _menu_scheda() -> void:
+	_menu_evidenzia()
+	var v := menu_destra
+	for c in v.get_children():
+		c.queue_free()
+	var k := scelta_scen
+	var sc: Dictionary = Motore.scenari[k]
+	var tt := etichetta("NAPOLEON'S LAST BATTLES", F_TITOLO, 22, C_ROSSO)
+	tt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(tt)
+	var t := etichetta(sc["titolo"], F_TITOLO, 40, C_BLU)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(t)
-	var s := etichetta("La campagna di Waterloo, 16-18 giugno 1815", F_CORSIVO, 25, C_ROSSO)
+	var sotto: String = sc["sotto"] if str(sc["sotto"]).contains(str(sc["data"])) else "%s · %s" % [sc["sotto"], sc["data"]]
+	var s := etichetta(sotto, F_CORSIVO, 20, C_INCHIOSTRO)
 	s.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(s)
-	var s2 := etichetta("Ligny · Quatre Bras · Wavre · La Belle Alliance", F_GRASSETTO, 19, C_INCHIOSTRO)
-	s2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	v.add_child(s2)
+	var nt: int = sc["turni"].size()
+	var info := "%d turni · Francesi contro %s" % [nt, _nome_alleati(k).substr(_nome_alleati(k).find(" ") + 1)]
+	if k == "campagna":
+		info = "%d turni su tre giornate, con notti e pioggia · le quattro mappe unite" % nt
+	var il := etichetta(info, F_GRASSETTO, 17, C_SPENTO)
+	il.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(il)
 	v.add_child(HSeparator.new())
-	v.add_child(bottone("Nuova partita", _menu_nuova, 26))
-	if FileAccess.file_exists(SALVA_LOCALE):
-		v.add_child(bottone("Continua la partita salvata", _menu_continua, 22))
-	v.add_child(bottone("Riprendi la partita salvata su Firebase", _continua_firebase, 20))
-	v.add_child(bottone("Gioca online con un amico", _menu_online, 22))
-	v.add_child(bottone("Le regole in breve", _menu_regole, 20))
-	v.add_child(bottone("Pedine: " + ("edizione 2015" if pedine_2015 else "originali SPI") + " (tocca per cambiare)", func():
+	v.add_child(etichetta(_descrizione_scenario(k), F_TESTO, 18))
+	v.add_child(etichetta(_forze_scenario(k), F_CORSIVO, 17, C_INCHIOSTRO))
+	v.add_child(HSeparator.new())
+	_menu_gruppo("Chi comandi", [["I Francesi", "ia", 0], ["Comando " + _nome_alleati(k), "ia", 1], ["Due giocatori qui", "due", 0], ["Guardo l'IA", "guarda", 0]],
+		func(o): return o[1] == scelta_modo and (o[1] != "ia" or o[2] == scelta_lato),
+		func(o):
+			scelta_modo = o[1]
+			scelta_lato = o[2])
+	if scelta_modo != "due":
+		_menu_gruppo("Avversario (IA)", [["prudente", 0], ["normale", 1], ["aggressivo", 2]],
+			func(o): return carattere_ia == o[1],
+			func(o): carattere_ia = o[1])
+	v.add_child(riga_lbl("Regole opzionali", F_GRASSETTO, 19, C_BLU))
+	var opz := [["Armi combinate: +1 colonna se attaccano insieme fanteria, cavalleria e artiglieria", "armi"]]
+	if _ha_guardia(k):
+		opz.append(["Guardia imperiale: il suo respingimento demoralizza i Francesi", "guardia"])
+	if _ha_opzionali(k):
+		opz.append(["Rinforzi francesi opzionali dello scenario", "opz"])
+	for o in opz:
+		var cb := CheckBox.new()
+		cb.text = o[0]
+		cb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cb.add_theme_font_size_override("font_size", 17)
+		match o[1]:
+			"armi": cb.button_pressed = opz_armi
+			"guardia": cb.button_pressed = opz_guardia
+			"opz": cb.button_pressed = opz_opzionali
+		var kk: String = o[1]
+		cb.toggled.connect(func(on): _opzione(kk, on))
+		v.add_child(cb)
+	var rp := HFlowContainer.new()
+	rp.add_theme_constant_override("h_separation", 8)
+	rp.add_theme_constant_override("v_separation", 8)
+	v.add_child(rp)
+	rp.add_child(bottone("Pedine: " + ("edizione 2015" if pedine_2015 else "originali SPI"), func():
 		_cambia_pedine()
-		mostra_menu(), 18))
-	var nota := etichetta("Quadrigioco SPI del 1976 (Kevin Zucker), regole riviste. Versione digitale per uso personale, dal modulo Tabletop Simulator.", F_CORSIVO, 16, C_SPENTO)
+		_menu_scheda(), 17))
+	if not Mappa.tasselli_nuova.is_empty():
+		rp.add_child(bottone("Mappa: " + ("ridisegnata 3D" if mappa_nuova else "originale"), func():
+			mappa_nuova = not mappa_nuova
+			_salva_opzioni()
+			_costruisci_mappa()
+			_menu_scheda(), 17))
+	v.add_child(HSeparator.new())
+	v.add_child(bottone("Alle armi!", _avvia_locale, 30))
+	var r2 := HFlowContainer.new()
+	r2.add_theme_constant_override("h_separation", 8)
+	r2.add_theme_constant_override("v_separation", 8)
+	v.add_child(r2)
+	if FileAccess.file_exists(SALVA_LOCALE):
+		r2.add_child(bottone("Continua la partita salvata", _menu_continua, 17))
+	r2.add_child(bottone("Partita salvata su Firebase", _continua_firebase, 17))
+	r2.add_child(bottone("Gioca online", _menu_online, 17))
+	r2.add_child(bottone("Le regole in breve", _menu_regole, 17))
+	var nota := etichetta("Quadrigioco SPI del 1976 (Kevin Zucker), regole riviste. Versione digitale per uso personale.", F_CORSIVO, 15, C_SPENTO)
 	nota.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(nota)
 
@@ -1219,87 +1481,7 @@ func _aggiorna_pezzi_vuoti() -> void:
 		c.queue_free()
 
 func _menu_nuova() -> void:
-	pulisci()
-	_sfondo()
-	var v := _scheda_centrale(1300, 830)
-	_intestazione(v, "Scegli la battaglia", "Quattro giochi in uno, e la campagna che li unisce")
-	var schede := HBoxContainer.new()
-	schede.add_theme_constant_override("separation", 10)
-	v.add_child(schede)
-	var g := ButtonGroup.new()
-	var descr := etichetta("", F_TESTO, 18)
-	for k in SCENARI:
-		var sc: Dictionary = Motore.scenari[k]
-		var col := VBoxContainer.new()
-		col.add_theme_constant_override("separation", 4)
-		schede.add_child(col)
-		col.add_child(immagine("res://assets/ui/%s.webp" % k, 240, 150))
-		var b := Button.new()
-		b.text = sc["titolo"]
-		b.toggle_mode = true
-		b.button_group = g
-		b.custom_minimum_size = Vector2(240, 0)
-		b.add_theme_font_size_override("font_size", 20)
-		b.button_pressed = k == scelta_scen
-		var kk: String = k
-		b.pressed.connect(func():
-			scelta_scen = kk
-			descr.text = _descrizione_scenario(kk))
-		col.add_child(b)
-		col.add_child(riga_lbl(sc["data"], F_CORSIVO, 16, C_SPENTO))
-	descr.text = _descrizione_scenario(scelta_scen)
-	descr.custom_minimum_size.y = 110
-	v.add_child(descr)
-	v.add_child(HSeparator.new())
-	var r := HBoxContainer.new()
-	r.add_theme_constant_override("separation", 10)
-	v.add_child(r)
-	var opz := [["Comando i Francesi", "ia", 0], ["Comando gli Alleati", "ia", 1], ["Due giocatori qui", "due", 0], ["Guardo l'IA", "guarda", 0]]
-	var gruppo := ButtonGroup.new()
-	for o in opz:
-		var b := Button.new()
-		b.text = o[0]
-		b.toggle_mode = true
-		b.button_group = gruppo
-		b.add_theme_font_size_override("font_size", 18)
-		b.button_pressed = o[1] == scelta_modo and (o[1] != "ia" or o[2] == scelta_lato)
-		b.pressed.connect(func():
-			scelta_modo = o[1]
-			scelta_lato = o[2])
-		r.add_child(b)
-	var r2 := HBoxContainer.new()
-	r2.add_theme_constant_override("separation", 10)
-	v.add_child(r2)
-	r2.add_child(riga_lbl("Avversario:", F_GRASSETTO, 19))
-	var g2 := ButtonGroup.new()
-	for o in [["prudente", 0], ["normale", 1], ["aggressivo", 2]]:
-		var b := Button.new()
-		b.text = o[0]
-		b.toggle_mode = true
-		b.button_group = g2
-		b.add_theme_font_size_override("font_size", 17)
-		b.button_pressed = carattere_ia == o[1]
-		b.pressed.connect(func(): carattere_ia = o[1])
-		r2.add_child(b)
-	var r3 := HBoxContainer.new()
-	r3.add_theme_constant_override("separation", 20)
-	v.add_child(r3)
-	for o in [["Armi combinate (+1 colonna)", "armi"], ["Guardia imperiale", "guardia"], ["Rinforzi francesi opzionali (Quatre Bras)", "opz"]]:
-		var cb := CheckBox.new()
-		cb.text = o[0]
-		cb.add_theme_font_size_override("font_size", 17)
-		match o[1]:
-			"armi": cb.button_pressed = opz_armi
-			"guardia": cb.button_pressed = opz_guardia
-			"opz": cb.button_pressed = opz_opzionali
-		var kk: String = o[1]
-		cb.toggled.connect(func(on): _opzione(kk, on))
-		r3.add_child(cb)
-	var r4 := HBoxContainer.new()
-	r4.add_theme_constant_override("separation", 14)
-	v.add_child(r4)
-	r4.add_child(bottone("Alle armi!", _avvia_locale, 26, 300))
-	r4.add_child(bottone("Indietro", mostra_menu, 20))
+	mostra_menu()
 
 func _opzione(k: String, on: bool) -> void:
 	match k:

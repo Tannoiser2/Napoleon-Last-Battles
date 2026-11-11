@@ -15,6 +15,11 @@ func _run():
 	var modo: String = args[0] if args.size() > 0 else "menu"
 	var sc: String = args[1] if args.size() > 1 else "bellealliance"
 	await shot("menu")
+	if modo.begins_with("menu_"):
+		main.scelta_scen = modo.substr(5)
+		main._menu_scheda()
+		await shot(modo)
+		quit(); return
 	if modo == "menu":
 		quit(); return
 	if modo == "nuova":
