@@ -25,6 +25,9 @@ var p_rischio_att := 0.0  # peso del rischio per chi attacca (provato: rende pas
 var p_accerchia := 1.0    # avanzata che toglie la ritirata a un nemico ancora da attaccare
 var p_tre_uno := 1.0      # abbassare il rapporto (di solito a 3-1) quando conviene: niente scambi
 var p_ordine := 1.0       # prima gli attacchi al centro: le avanzate chiudono la ritirata ai vicini
+var p_corpo := 3.0        # comando: penalità per ogni esagono oltre il raggio dall'ufficiale
+var p_raggio_corpo := 4   # (l'ufficiale si sposta dopo le unità, al centro del corpo)
+var p_meta := 1.5         # campagna francese: attrazione verso la meta del proprio corpo
 var p_aggiro := 1.0       # chi va all'attacco preferisce gli esagoni che tagliano la ritirata al bersaglio
 var piano: Array = []
 var chiave := ""
@@ -112,6 +115,42 @@ func soglia(lato: int) -> int:
 	elif carattere == 2:
 		base -= 1
 	return clampi(base, 4, 7)
+
+## Campagna francese, il piano di Napoleone (e dei giocatori esperti: battere i Prussiani il 16, poi
+## puntare su Bruxelles, perché la vittoria viene soprattutto dalle unità uscite da 0605):
+## il 16 l'ala di Ney (I, II corpo, cavalleria di Kellermann) prende Quatre Bras, il resto attacca a Ligny;
+## dal 17 l'ala di Grouchy (III, IV corpo, cavalleria di Pajol ed Exelmans) incalza i Prussiani,
+## tutti gli altri marciano sulla strada di Bruxelles fino a uscire da 0605.
+const ALA_NEY := ["I", "II", "IIIC"]
+const ALA_GROUCHY := ["III", "IV", "IC", "IIC"]
+
+func meta_corpo(id: String) -> String:
+	if m.s["scen"] != "campagna" or m.lato_di(id) != Motore.FR:
+		return ""
+	var c: String = m.cat(id)["c"]
+	var g := m.giorno()
+	if g <= 16:
+		return "1641" if c in ALA_NEY else "3755"
+	if c in ALA_GROUCHY:
+		# il centro dei Prussiani ancora in campo
+		var somma := Vector2.ZERO
+		var n := 0
+		for x in m.s["unita"]:
+			if m.esercito(x) == "PR" and m.s["unita"][x]["st"] == "mappa":
+				somma += Mappa.pos(m.s["unita"][x]["h"])
+				n += 1
+		if n > 0:
+			var p := somma / float(n)
+			var best := ""
+			var bd := INF
+			for x in m.s["unita"]:
+				if m.esercito(x) == "PR" and m.s["unita"][x]["st"] == "mappa":
+					var dd := Mappa.pos(m.s["unita"][x]["h"]).distance_to(p)
+					if dd < bd:
+						bd = dd
+						best = m.s["unita"][x]["h"]
+			return best
+	return "0605"
 
 ## Obiettivi del lato: esagoni da prendere o tenere
 func obiettivi(lato: int) -> Array:
@@ -294,7 +333,8 @@ func _uscite_capi(piano_usc: Array) -> Array:
 				usciti += 1
 			elif st == "mappa" or st == "arrivo":
 				restano += 1
-		if usciti > 0 and restano == 0 and m.raggiungibili(c).has("0605"):
+		var finale: bool = int(m.s["turno"]) >= m.scen["turni"].size() - 2
+		if usciti > 0 and (restano == 0 or usciti >= restano or finale) and m.raggiungibili(c).has("0605"):
 			da_far_uscire.append(c)
 	for c in da_far_uscire:
 		out.append({"a": "esci_capo", "c": c})
@@ -438,9 +478,13 @@ func _pianifica_movimento(lato: int) -> Array:
 		_forza_piano[best] = _forza_piano.get(best, 0.0) + m.forza(id)
 		if mobili[id]["da"] != "":
 			_forza_piano[mobili[id]["da"]] = _forza_piano.get(mobili[id]["da"], 0.0) - m.forza(id)
-	# 3. capi (campagna, o battaglia con le regole 10-11)
+	# 3. capi (campagna, o battaglia con le regole 10-11): seguono le posizioni pianificate delle unità
 	if m.comando():
-		out.append_array(_muovi_capi(lato))
+		var dove := {}
+		for mv in out:
+			if mv["a"] in ["muovi", "entra"]:
+				dove[mv["u"]] = mv["h"]
+		out.append_array(_muovi_capi(lato, dove))
 	return out
 
 ## Forza nemica che può colpire ciascun esagono nel prossimo turno (movimento più attacco,
@@ -673,7 +717,15 @@ func _miglior_posto(id: String, lato: int, info: Dictionary, nem: Array) -> Stri
 			# ferma a due esagoni; un 1-2 resta un diversivo senza rischi
 			if col < 3 and not _presidio.has(id):
 				v -= 10.0 * p_contatto
-		if aggr:
+		var meta := meta_corpo(id) if p_meta > 0.0 else ""
+		if aggr and meta != "":
+			# marcia verso la meta del corpo; il nemico attira solo quando è vicino
+			v -= float(Mappa.distanza(h, meta)) * p_meta
+			if dn <= 3:
+				v -= dn * 1.0
+			if dn == 2 and not in_z:
+				v += 1.0
+		elif aggr:
 			v -= dn * 2.0
 			if dn == 2 and not in_z:
 				v += 2.0
@@ -691,7 +743,7 @@ func _miglior_posto(id: String, lato: int, info: Dictionary, nem: Array) -> Stri
 			var dobj2 := 99
 			for o in obi:
 				dobj2 = mini(dobj2, Mappa.distanza(h, o))
-			v -= dobj2 * (0.6 if aggr else 0.0)
+			v -= dobj2 * (0.6 if aggr and meta == "" else 0.0)
 		v += _valore_terreno(h, tp) * (0.6 if aggr else 1.2)
 		if not aggr and dn <= 4:
 			# contropendenza: una cresta fra noi e il nemico ferma il tiro dell'artiglieria (Wellington)
@@ -748,13 +800,14 @@ func _miglior_posto(id: String, lato: int, info: Dictionary, nem: Array) -> Stri
 		for x in Mappa.vicini(h):
 			if Mappa.terreno(x) == "castello" and m.lato_hex(x) == 1 - lato:
 				v -= 4.0
-		# comando: restare entro 3 esagoni dal proprio ufficiale
+		# comando: il corpo resta unito attorno al suo ufficiale (che poi si sposta al centro del corpo):
+		# un'unità fuori comando non può entrare nelle zone nemiche né attaccare bene
 		if m.comando():
 			var uf := m.ufficiale_di(id)
 			if uf != "" and m.s["capi"][uf]["st"] == "mappa":
 				var du := Mappa.distanza(h, m.s["capi"][uf]["h"])
-				if du > 3:
-					v -= (du - 3) * 0.8
+				if du > p_raggio_corpo:
+					v -= (du - p_raggio_corpo) * p_corpo
 		# Wavre: la retroguardia prussiana tiene i ponti, i Francesi li vogliono
 		if m.s["scen"] == "wavre":
 			var dp := 99
@@ -769,39 +822,99 @@ func _miglior_posto(id: String, lato: int, info: Dictionary, nem: Array) -> Stri
 			best = h
 	return best
 
-func _muovi_capi(lato: int) -> Array:
+## Capi: prima gli ufficiali, al centro del proprio corpo (secondo le posizioni pianificate) e mai oltre
+## 3 esagoni dalle unità più lontane se si può; poi i comandanti, dove raggiungono entro 5 esagoni il maggior
+## numero di ufficiali (i corpi più forti per primi), fino alla loro capacità di comando.
+func _muovi_capi(lato: int, dove: Dictionary = {}) -> Array:
 	var out := []
+	var pos_capo := {}
+	var forza_corpo := {}
 	for c in m.s["capi"]:
 		var cc: Dictionary = m.s["capi"][c]
 		if cc["st"] != "mappa" or m.lato_di(c) != lato:
 			continue
+		pos_capo[c] = cc["h"]
 		var cat: Dictionary = Motore.catalogo["capi"][c]
-		# baricentro delle unità da comandare (pianificato)
-		var somma := Vector2.ZERO
-		var n := 0
+		if int(cat["cap"]) > 0:
+			continue
+		var posti := []
+		var fz := 0.0
 		for id in m.s["unita"]:
 			var u: Dictionary = m.s["unita"][id]
-			if u["st"] != "mappa" or m.esercito(id) != cat["es"]:
+			if u["st"] != "mappa" or m.ufficiale_di(id) != c:
 				continue
-			if int(cat["cap"]) == 0:
-				var des: String = m.cat(id)["c"] if cat["es"] != "AA" else m.cat(id)["des"]
-				if des != cat["des"]:
-					continue
-			somma += Mappa.pos(u["h"])
-			n += 1
-		if n == 0:
+			posti.append(dove.get(id, u["h"]))
+			fz += m.forza(id)
+		forza_corpo[c] = fz
+		if posti.is_empty() or cc.get("mosso", false):
 			continue
-		var p := somma / n
+		var somma := Vector2.ZERO
+		for h in posti:
+			somma += Mappa.pos(h)
+		var p := somma / float(posti.size())
 		var rg := m.raggiungibili(c)
+		rg[cc["h"]] = 0
 		var best: String = cc["h"]
-		var bd := Mappa.pos(best).distance_to(p)
+		var bv := INF
 		for h in rg:
-			var d := Mappa.pos(h).distance_to(p)
-			if m.zoc(h, 1 - lato):
-				d += 200.0
-			if d < bd - 1.0:
-				bd = d
+			if m.zoc(h, 1 - lato) and m.unita_in(h, lato).is_empty():
+				continue
+			var fuori := 0
+			for x in posti:
+				fuori += maxi(0, Mappa.distanza(h, x) - 3)
+			var v := float(fuori) * 100.0 + Mappa.pos(h).distance_to(p)
+			if v < bv - 0.5:
+				bv = v
 				best = h
+		pos_capo[c] = best
+		if best != cc["h"]:
+			out.append({"a": "capo", "c": c, "h": best})
+	# comandanti, i più capaci per primi
+	var comandanti := []
+	for c in m.s["capi"]:
+		if m.s["capi"][c]["st"] == "mappa" and m.lato_di(c) == lato and int(Motore.catalogo["capi"][c]["cap"]) > 0 and not m.s["capi"][c].get("mosso", false):
+			comandanti.append(c)
+	comandanti.sort_custom(func(a, b): return int(Motore.catalogo["capi"][a]["cap"]) > int(Motore.catalogo["capi"][b]["cap"]))
+	var coperti := {}
+	for c in comandanti:
+		var cc: Dictionary = m.s["capi"][c]
+		var es: String = Motore.catalogo["capi"][c]["es"]
+		var cap := int(Motore.catalogo["capi"][c]["cap"])
+		var uff := []
+		for o in forza_corpo:
+			if not coperti.has(o) and Motore.catalogo["capi"][o]["es"] == es:
+				uff.append(o)
+		var rg := m.raggiungibili(c)
+		rg[cc["h"]] = 0
+		var best: String = cc["h"]
+		var bv := -INF
+		var best_sel := []
+		for h in rg:
+			if m.zoc(h, 1 - lato) and m.unita_in(h, lato).is_empty():
+				continue
+			var vic := []
+			for o in uff:
+				if Mappa.distanza(h, pos_capo[o]) <= 5:
+					vic.append([forza_corpo[o], o])
+			vic.sort()
+			vic.reverse()
+			var sel := vic.slice(0, cap)
+			var v := 0.0
+			for x in sel:
+				v += 10.0 + float(x[0]) * 0.1
+			# a parità, vicino agli ufficiali non ancora coperti e al sicuro dietro il fronte
+			var dmin := 99
+			for o in uff:
+				dmin = mini(dmin, Mappa.distanza(h, pos_capo[o]))
+			v -= float(dmin) * 0.2
+			if m.zoc(h, 1 - lato):
+				v -= 3.0
+			if v > bv:
+				bv = v
+				best = h
+				best_sel = sel
+		for x in best_sel:
+			coperti[x[1]] = true
 		if best != cc["h"]:
 			out.append({"a": "capo", "c": c, "h": best})
 	return out

@@ -69,6 +69,13 @@ Si gioca qui: https://tannoiser2.github.io/Napoleon-Last-Battles/ (e nella ludot
   attaccare, sceglie per l'attacco gli esagoni che coprono le vie di fuga del bersaglio e non si ferma accanto a
   nemici che la costringerebbero a un attacco a 1-3. Con 48 partite per lato: Francesi da 30 a 35 vittorie
   contro gli stessi Alleati; Alleati da 10 a 13 vittorie contro gli stessi Francesi.
+  Campagna: l'IA francese segue il piano di Napoleone. Il 16 l'ala di Ney (I e II corpo, Kellermann) va su
+  Quatre Bras e il resto attacca a Ligny; dal 17 l'ala di Grouchy (III e IV corpo, Pajol, Exelmans) incalza i
+  Prussiani e tutti gli altri marciano sulla strada di Bruxelles fino a uscire da 0605, con ufficiali e
+  comandanti al seguito. I corpi restano uniti attorno all'ufficiale, gli ufficiali vanno al centro delle
+  posizioni pianificate del corpo e i comandanti dove coprono più ufficiali: prima i Francesi finivano quasi
+  tutti fuori comando (6 unità su 56 al turno 14), non potevano entrare nelle zone nemiche e restavano fermi,
+  con 0-40 punti; ora 110-145 punti nelle partite automatiche (ne servono 230).
 - **Online** (`scripts/rete.gd`): stanza con codice di 4 lettere, decisioni numerate nel registro della stanza
   (`napoleonlb/rooms/<codice>`); i dadi sono deterministici, le due copie restano identiche. Se l'amico non entra,
   l'altra parte la guida l'IA. Le regole del database sono quelle comuni della ludoteca.
