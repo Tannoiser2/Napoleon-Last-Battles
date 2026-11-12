@@ -105,6 +105,8 @@ func resistere(lato: int, es := "") -> bool:
 		"wavre":
 			# sganciarsi serve per uscire dalla mappa (punti) e per non lasciare unità ai Francesi
 			return p_wavre > 0.0
+		"campagna":
+			return es == "AA" or (es == "PR" and m.giorno() == 16)
 	return false
 
 func soglia(lato: int) -> int:
@@ -123,6 +125,84 @@ func soglia(lato: int) -> int:
 ## tutti gli altri marciano sulla strada di Bruxelles fino a uscire da 0605.
 const ALA_NEY := ["I", "II", "IIIC"]
 const ALA_GROUCHY := ["III", "IV", "IC", "IIC"]
+
+## Campagna alleata, il piano storico (e quello che consigliano i giocatori): il 16 i Prussiani tengono i
+## villaggi di Ligny e Wellington concentra a Quatre Bras; dalla notte del 16 i Prussiani ripiegano su Wavre
+## restando uniti, il 17 Wellington si ritira sulla cresta di Mont St Jean; il 18 Wellington tiene la cresta
+## e i Prussiani marciano da Wavre su Plancenoit e Frischermont, sul fianco destro francese.
+const LIGNY := ["3755", "3854", "3855", "3955", "3256", "3357", "3457"]
+const WAVRE := ["4407", "4609", "4205"]
+const MONT_ST_JEAN := ["0811", "0812", "0617", "0916", "1015", "1423"]
+const PLANCENOIT := ["1220", "1415", "1321"]
+
+## Distanza "di marcia" (punti movimento della fanteria, strade comprese) da ogni esagono alla meta più
+## vicina: le colonne seguono le strade invece di tagliare per boschi e paludi. Calcolata una volta per meta.
+var _campi := {}
+var _rete_rif := {}   # esercito -> rete stradale di rifornimento (solo nelle notti prima del controllo)
+var _rif_ok := {}
+func distanza_marcia(h: String, mete: Array) -> float:
+	var chiave_c := ",".join(mete)
+	if not _campi.has(chiave_c):
+		var dist := {}
+		var aperti := []
+		for o in mete:
+			dist[o] = 0.0
+			aperti.append([0.0, o])
+		# Dijkstra semplice con una lista ordinata a secchi di mezzo punto
+		var secchi := {}
+		for o in mete:
+			if not secchi.has(0):
+				secchi[0] = []
+			secchi[0].append(o)
+		var k := 0
+		var restano := mete.size()
+		while restano > 0 and k < 4000:
+			if secchi.has(k):
+				for a in secchi[k]:
+					restano -= 1
+					if float(dist[a]) * 2.0 < float(k) - 0.01:
+						continue
+					for b in Mappa.vicini(a):
+						var c := m.costo_passo(b, a, "I", false)
+						if c == INF:
+							continue
+						var nd: float = float(dist[a]) + c
+						if not dist.has(b) or nd < float(dist[b]) - 0.01:
+							dist[b] = nd
+							var kb := int(round(nd * 2.0))
+							if not secchi.has(kb):
+								secchi[kb] = []
+							secchi[kb].append(b)
+							restano += 1
+				secchi.erase(k)
+			k += 1
+		_campi[chiave_c] = dist
+	return float(_campi[chiave_c].get(h, 999.0))
+
+func _ora() -> int:
+	var l: String = m.turno_label()
+	var cifre := ""
+	for ch in l:
+		if ch >= "0" and ch <= "9":
+			cifre += ch
+	return int(cifre) if cifre != "" else 0
+
+func mete_alleate(id: String) -> Array:
+	if m.s["scen"] != "campagna" or m.lato_di(id) != Motore.AL:
+		return []
+	var g := m.giorno()
+	var t := int(m.s["turno"])
+	if m.esercito(id) == "PR":
+		if g == 16 and not m.notte():
+			return LIGNY
+		# nella notte via da Ligny verso nord (Wavre), dal mattino del 17 già verso ovest: la marcia
+		# Wavre-Plancenoit costò a Bülow tutta la mattina del 18 e nel gioco arriverebbe a sera
+		if g == 16 or (g == 17 and m.notte()):
+			return WAVRE
+		return PLANCENOIT
+	if g == 16:
+		return ["1641"]
+	return MONT_ST_JEAN
 
 func meta_corpo(id: String) -> String:
 	if m.s["scen"] != "campagna" or m.lato_di(id) != Motore.FR:
@@ -370,6 +450,11 @@ func _pianifica_movimento(lato: int) -> Array:
 			_occ_piano[u["h"]] = _occ_piano.get(u["h"], 0) + 1
 	var nem := _nemici(lato)
 	_minaccia = _calcola_minaccia(lato, nem) if (resistere(lato, "AA") or resistere(lato, "PR") or p_rischio_att > 0.0) else {}
+	_rete_rif = {}
+	_rif_ok = {}
+	if m.campagna() and m.notte() and m.turno_label() in ["N2400", "N0300", "N0600"] and m.giorno() <= 18:
+		for es in (["FR"] if lato == Motore.FR else ["PR", "AA"]):
+			_rete_rif[es] = m.rete_rifornimento(es)
 	_forza_piano = {}
 	for id in m.s["unita"]:
 		if m.s["unita"][id]["st"] == "mappa" and m.lato_di(id) == lato:
@@ -718,9 +803,34 @@ func _miglior_posto(id: String, lato: int, info: Dictionary, nem: Array) -> Stri
 			if col < 3 and not _presidio.has(id):
 				v -= 10.0 * p_contatto
 		var meta := meta_corpo(id) if p_meta > 0.0 else ""
-		if aggr and meta != "":
-			# marcia verso la meta del corpo; il nemico attira solo quando è vicino
-			v -= float(Mappa.distanza(h, meta)) * p_meta
+		var mete_al: Array = mete_alleate(id) if p_meta > 0.0 else []
+		if not mete_al.is_empty():
+			var dm := 99
+			for o in mete_al:
+				dm = mini(dm, Mappa.distanza(h, o))
+			var dmarcia := distanza_marcia(h, mete_al) / 2.0
+			if aggr:
+				# i Prussiani il 18: marcia sul fianco francese, attacco solo quando sono arrivati;
+				# per strada si lascia una retroguardia, non si combatte (Thielmann a Wavre)
+				if dm > 6:
+					v -= dmarcia * p_meta * 1.4
+					if in_z:
+						v -= 6.0
+				else:
+					v -= dmarcia * p_meta
+					if dn <= 3:
+						v -= dn * 1.0
+			else:
+				# ripiegamento o difesa sulla posizione assegnata, senza farsi agganciare per strada
+				v -= (dmarcia if dm > 3 else float(dm)) * 1.5
+				if dm > 3 and dn <= 2:
+					v -= (3 - dn) * 2.0
+				if dn <= 2 and dm <= 2:
+					v += 1.0
+			meta = "*"
+		elif aggr and meta != "":
+			# marcia verso la meta del corpo (per le strade); il nemico attira solo quando è vicino
+			v -= distanza_marcia(h, [meta]) / 2.0 * p_meta
 			if dn <= 3:
 				v -= dn * 1.0
 			if dn == 2 and not in_z:
@@ -729,6 +839,8 @@ func _miglior_posto(id: String, lato: int, info: Dictionary, nem: Array) -> Stri
 			v -= dn * 2.0
 			if dn == 2 and not in_z:
 				v += 2.0
+		elif meta == "*":
+			pass
 		else:
 			# in difesa: vicino agli obiettivi e su buon terreno, senza correre verso il nemico
 			var dobj := 99
@@ -800,14 +912,27 @@ func _miglior_posto(id: String, lato: int, info: Dictionary, nem: Array) -> Stri
 		for x in Mappa.vicini(h):
 			if Mappa.terreno(x) == "castello" and m.lato_hex(x) == 1 - lato:
 				v -= 4.0
+		# rifornimento (campagna): nella notte prima del controllo del mattino chi resta tagliato fuori
+		# viene eliminato, quindi si sta entro 5 esagoni dalla rete stradale collegata al proprio bordo
+		if not _rete_rif.is_empty():
+			var es := m.esercito(id)
+			if _rete_rif.has(es):
+				var kr: String = es + ":" + h
+				if not _rif_ok.has(kr):
+					_rif_ok[kr] = m._traccia_rif(_rete_rif[es], h, lato)
+				if not _rif_ok[kr]:
+					v -= 12.0
 		# comando: il corpo resta unito attorno al suo ufficiale (che poi si sposta al centro del corpo):
 		# un'unità fuori comando non può entrare nelle zone nemiche né attaccare bene
 		if m.comando():
 			var uf := m.ufficiale_di(id)
 			if uf != "" and m.s["capi"][uf]["st"] == "mappa":
 				var du := Mappa.distanza(h, m.s["capi"][uf]["h"])
-				if du > p_raggio_corpo:
-					v -= (du - p_raggio_corpo) * p_corpo
+				# lontano dal nemico il corpo marcia: l'ufficiale (6 PM) lo raggiunge dopo
+				var marcia := not mete_al.is_empty() and Mappa.distanza(h, mete_al[0]) > 6
+				var raggio := p_raggio_corpo if (dn <= 5 and not marcia) else p_raggio_corpo + 5
+				if du > raggio:
+					v -= (du - raggio) * p_corpo
 		# Wavre: la retroguardia prussiana tiene i ponti, i Francesi li vogliono
 		if m.s["scen"] == "wavre":
 			var dp := 99

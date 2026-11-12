@@ -939,8 +939,8 @@ func _esci_capo(d: Dictionary) -> bool:
 func in_comando(id: String) -> bool:
 	if not comando():
 		return true
-	if notte():
-		return false
+	# di notte (e con la pioggia delle regole base) non c'è fase di comando: vale lo stato dell'ultima
+	# fase di comando del giorno (11.3: fino al prossimo segmento di comando amico)
 	return bool(s["comando"].get(id, false))
 
 ## Distanza di comando: passi che non attraversano nemici né esagoni controllati senza amici
@@ -963,10 +963,13 @@ func _raggio_comando(h0: String, lato: int, raggio: int) -> Dictionary:
 	return out
 
 func _calcola_comando(lato: int) -> void:
-	s["comando"] = {}
 	s["comando_dato"] = {}
-	if notte():
+	if senza_combattimento():
 		return
+	# si ricalcola solo per il lato di turno: lo stato dell'altro resta quello della sua ultima fase
+	for x in s["comando"].keys():
+		if lato_di(x) == lato:
+			s["comando"].erase(x)
 	# 15.4: i comandanti francesi inattivi si svegliano con un 1, o se un comandante attivo li ha raggiunti
 	if lato == FR and opz("partenza"):
 		for c in s["capi"]:

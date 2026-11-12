@@ -76,6 +76,14 @@ Si gioca qui: https://tannoiser2.github.io/Napoleon-Last-Battles/ (e nella ludot
   posizioni pianificate del corpo e i comandanti dove coprono più ufficiali: prima i Francesi finivano quasi
   tutti fuori comando (6 unità su 56 al turno 14), non potevano entrare nelle zone nemiche e restavano fermi,
   con 0-40 punti; ora 110-145 punti nelle partite automatiche (ne servono 230).
+  Campagna alleata, sul piano storico: il 16 i Prussiani tengono i villaggi di Ligny e Wellington si concentra a
+  Quatre Bras; nella notte i Prussiani si sganciano verso nord, dal 17 marciano verso ovest e il 18 puntano su
+  Plancenoit e Frischermont, senza farsi trattenere per strada (una retroguardia basta); dal 17 Wellington tiene la
+  cresta di Mont St Jean. Le colonne seguono le strade (distanza di marcia calcolata in punti movimento) e nelle
+  notti prima del controllo del rifornimento nessuno resta tagliato fuori dalla rete stradale.
+  Corretto anche un errore delle regole: di notte (e con la pioggia delle regole base) non c'è fase di comando e
+  vale lo stato dell'ultima fase del giorno (11.3); prima tutte le unità diventavano fuori comando e quelle a
+  contatto col nemico restavano inchiodate per tutta la notte.
 - **Online** (`scripts/rete.gd`): stanza con codice di 4 lettere, decisioni numerate nel registro della stanza
   (`napoleonlb/rooms/<codice>`); i dadi sono deterministici, le due copie restano identiche. Se l'amico non entra,
   l'altra parte la guida l'IA. Le regole del database sono quelle comuni della ludoteca.
