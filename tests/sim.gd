@@ -26,10 +26,19 @@ func _init() -> void:
 			ia[1] = IAVecchia.new(mo)
 		for a in args:
 			if str(a).contains("="):
-				var kv := str(a).split("=")
-				for x in ia:
-					if x is IA:
-						x.set(kv[0], float(kv[1]))
+				# k=v per entrambi, fr:k=v o al:k=v per un solo lato
+				var s := str(a)
+				var lati := [0, 1]
+				if s.begins_with("fr:"):
+					lati = [0]
+					s = s.substr(3)
+				elif s.begins_with("al:"):
+					lati = [1]
+					s = s.substr(3)
+				var kv := s.split("=")
+				for li in lati:
+					if ia[li] is IA:
+						ia[li].set(kv[0], float(kv[1]))
 		var passi := 0
 		var conta := {}
 		var rifiuti := 0

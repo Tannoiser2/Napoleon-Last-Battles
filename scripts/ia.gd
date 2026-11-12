@@ -18,6 +18,14 @@ var p_wavre := 1.0        # Wavre: sganciamento per uscire
 var p_villaggi := 1.0     # Ligny: presidiare e riprendere i villaggi
 var p_peso := 1.6        # quanto chi difende pesa le proprie perdite
 var p_libera := 0.5       # valore delle unità amiche liberate dall'accerchiamento
+# disciplina d'attacco (dai resoconti: si va a contatto solo dove si attacca bene, si avanza per chiudere)
+var p_contatto := 1.0     # penalità per fermarsi a contatto senza un attacco favorevole
+var p_isola := 0.0        # penalità per l'unità che resta sola vicino al nemico (provata: rende passivi)
+var p_rischio_att := 0.0  # peso del rischio per chi attacca (provato: rende passivi)
+var p_accerchia := 1.0    # avanzata che toglie la ritirata a un nemico ancora da attaccare
+var p_tre_uno := 1.0      # abbassare il rapporto (di solito a 3-1) quando conviene: niente scambi
+var p_ordine := 1.0       # prima gli attacchi al centro: le avanzate chiudono la ritirata ai vicini
+var p_aggiro := 1.0       # chi va all'attacco preferisce gli esagoni che tagliano la ritirata al bersaglio
 var piano: Array = []
 var chiave := ""
 var _fatto := ""
@@ -201,6 +209,18 @@ func senza_ritirata(h: String, lato_dif: int) -> bool:
 			return false
 	return true
 
+## Il nemico in e resterebbe senza ritirata se un'unità amica occupasse h (che con la sua zona di
+## controllo chiude anche gli esagoni attorno)?
+func _chiuso_con(e: String, lato_dif: int, h: String) -> bool:
+	for v in Mappa.vicini(e):
+		if v == h or Mappa.adiacenti(v, h):
+			continue
+		if not Mappa.passabile(e, v) or m.nemico_in(v, lato_dif) or m.zoc(v, 1 - lato_dif):
+			continue
+		if m.unita_in(v, lato_dif).size() < _capienza(v):
+			return false
+	return true
+
 var _ponti := []
 
 ## I ponti sulla Dyle (Wavre): la chiave della partita
@@ -309,7 +329,7 @@ func _pianifica_movimento(lato: int) -> Array:
 		if u["st"] == "mappa" and m.lato_di(id) == lato:
 			_occ_piano[u["h"]] = _occ_piano.get(u["h"], 0) + 1
 	var nem := _nemici(lato)
-	_minaccia = _calcola_minaccia(lato, nem) if (resistere(lato, "AA") or resistere(lato, "PR")) else {}
+	_minaccia = _calcola_minaccia(lato, nem) if (resistere(lato, "AA") or resistere(lato, "PR") or p_rischio_att > 0.0) else {}
 	_forza_piano = {}
 	for id in m.s["unita"]:
 		if m.s["unita"][id]["st"] == "mappa" and m.lato_di(id) == lato:
@@ -465,7 +485,7 @@ func rischio(h: String, sp: float, chiuso: bool) -> float:
 	return v / 6.0
 
 func _peso_rischio(lato: int, es := "") -> float:
-	return p_rischio_res if resistere(lato, es) else 0.0
+	return p_rischio_res if resistere(lato, es) else p_rischio_att
 
 func _uscita(id: String, lato: int, info: Dictionary) -> String:
 	match m.s["scen"]:
@@ -542,7 +562,26 @@ func _pianifica_attacchi(lato: int, mobili: Dictionary, nem: Array) -> Array:
 						cand.append([0, id, h])
 				elif d == 2 and art and not m.zoc(h, 1 - lato) and Mappa.terreno(t) != "castello" and m.linea_di_tiro(h, t):
 					cand.append([0, id, h])
-		cand.sort_custom(func(a, b): return a[0] < b[0] or (a[0] == b[0] and m.forza(a[1]) > m.forza(b[1])))
+		# aggiramento: gli esagoni accanto al bersaglio che ne coprono le vie di ritirata vengono prima
+		var vie := []
+		if p_aggiro > 0.0:
+			for v in Mappa.vicini(t):
+				if Mappa.passabile(t, v) and not m.nemico_in(v, 1 - lato) and not m.zoc(v, lato) and m.lato_hex(v) != lato:
+					vie.append(v)
+		var chiude := {}
+		for c in cand:
+			var hc: String = c[2]
+			var n := 0
+			for v in vie:
+				if v == hc or Mappa.adiacenti(v, hc):
+					n += 1
+			chiude[hc] = n
+		cand.sort_custom(func(a, b):
+			if a[0] != b[0]:
+				return a[0] < b[0]
+			if p_aggiro > 0.0 and chiude[a[2]] != chiude[b[2]]:
+				return chiude[a[2]] > chiude[b[2]]
+			return m.forza(a[1]) > m.forza(b[1]))
 		var presi := {}
 		var tipi := {}
 		for c in cand:
@@ -557,7 +596,7 @@ func _pianifica_attacchi(lato: int, mobili: Dictionary, nem: Array) -> Array:
 			for v in Mappa.vicini(h):
 				if v != t and m.lato_hex(v) == 1 - lato:
 					altri += _difesa_hex(v, 1 - lato)
-			if altri > m.forza(id) * 2.5 and Mappa.distanza(h, t) == 1:
+			if altri > m.forza(id) * 2.0 and Mappa.distanza(h, t) == 1:
 				continue
 			presi[id] = true
 			posti[h] = posti.get(h, 0) + 1
@@ -630,6 +669,10 @@ func _miglior_posto(id: String, lato: int, info: Dictionary, nem: Array) -> Stri
 			v += (col - soglia(lato)) * 3.0 - 4.0
 			if col < 4:
 				v -= 8.0
+			# a contatto si è obbligati ad attaccare: a 1-3 o peggio (dove si può perdere l'unità) ci si
+			# ferma a due esagoni; un 1-2 resta un diversivo senza rischi
+			if col < 3 and not _presidio.has(id):
+				v -= 10.0 * p_contatto
 		if aggr:
 			v -= dn * 2.0
 			if dn == 2 and not in_z:
@@ -684,6 +727,16 @@ func _miglior_posto(id: String, lato: int, info: Dictionary, nem: Array) -> Stri
 					lib += 1
 			var sp: float = float(m.forza(id)) + _forza_piano.get(h, 0.0) - (float(m.forza(id)) if h == h0 else 0.0)
 			v -= pr * rischio(h, sp, lib <= 1)
+		# nessuno si spinge da solo vicino al nemico: le unità isolate sono le prime a essere accerchiate
+		if p_isola > 0.0 and dn <= 3:
+			var vicini_amici := 0
+			for x in Mappa.vicini(h):
+				if _occ_piano.get(x, 0) > 0:
+					vicini_amici += 1
+			if _occ_piano.get(h, 0) - (1 if h == h0 else 0) > 0:
+				vicini_amici += 1
+			if vicini_amici == 0:
+				v -= 3.0 * p_isola
 		if tp in ["A", "HA"] and in_z:
 			v -= 3.0
 		if tp in ["A", "HA"] and dn == 2:
@@ -853,12 +906,39 @@ func _pianifica_attacchi_fase(lato: int) -> Array:
 			lista[migliore]["att"].append(a)
 	for at in lista:
 		at.erase("solo_art")
-		out.append({"a": "attacco", "dif": at["dif"], "att": at["att"]})
-	# prima gli attacchi migliori
-	out.sort_custom(func(x, y):
-		var vx := m.valuta_attacco(x)
-		var vy := m.valuta_attacco(y)
-		return int(vx.get("col", 0)) > int(vy.get("col", 0)))
+		var d := {"a": "attacco", "dif": at["dif"], "att": at["att"]}
+		# rapporto ridotto: contro chi non può ritirarsi un 3-1 elimina quasi come un 4-1, senza scambi
+		if p_tre_uno > 0.0:
+			var va := m.valuta_attacco(d)
+			if va["ok"] and int(va["col_max"]) >= 6:
+				var best_c := int(va["col_max"])
+				var best_v := saldo_atteso(va, lato)
+				for c in range(int(va["col_max"]) - 1, 4, -1):
+					var vc: Dictionary = va.duplicate()
+					vc["col"] = c
+					var sv := saldo_atteso(vc, lato)
+					if sv > best_v + 0.05:
+						best_v = sv
+						best_c = c
+				if best_c < int(va["col_max"]):
+					d["col"] = best_c
+		out.append(d)
+	# ordine: prima gli attacchi migliori; con p_ordine prima quelli al centro di un gruppo di bersagli,
+	# perché le avanzate chiudono la ritirata ai vicini (e chi è già chiuso va per ultimo)
+	var punti := {}
+	for d in out:
+		var va := m.valuta_attacco(d)
+		var pv := float(va.get("col", 0))
+		if p_ordine > 0.0:
+			var vicini_b := 0
+			for e in out:
+				if e != d and Mappa.distanza(e["dif"][0], d["dif"][0]) <= 2:
+					vicini_b += 1
+			pv += p_ordine * 0.6 * vicini_b
+			if senza_ritirata(d["dif"][0], 1 - lato):
+				pv -= p_ordine * 1.5
+		punti[d] = pv
+	out.sort_custom(func(x, y): return punti[x] > punti[y])
 	return out
 
 ## Attacchi obbligatori: ogni gruppo a contatto deve attaccare e ogni nemico a contatto deve essere attaccato.
@@ -1173,6 +1253,20 @@ func _avanza(rq: Dictionary) -> Dictionary:
 			v += 4.0 * p_villaggi
 		if h0 in obiettivi(lato):
 			v -= 4.0 * p_villaggi
+		# la zona di controllo di un'unità debole taglia la ritirata come quella di una forte
+		if p_accerchia > 0.0:
+			v -= float(m.forza(id)) * 0.08 * p_accerchia
+		# accerchiamento: occupando h si chiude l'ultima via di ritirata a un nemico non ancora attaccato
+		if p_accerchia > 0.0:
+			for e in Mappa.vicini(h):
+				var nem_e := m.unita_in(e, 1 - lato)
+				if nem_e.is_empty() or m.s["unita"][nem_e[0]]["dif"]:
+					continue
+				if not senza_ritirata(e, 1 - lato) and _chiuso_con(e, 1 - lato, h):
+					var sp := 0.0
+					for x in nem_e:
+						sp += m.forza(x)
+					v += (2.0 + sp * 0.5) * p_accerchia
 		if v > bv:
 			bv = v
 			best = c

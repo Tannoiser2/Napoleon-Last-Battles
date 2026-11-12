@@ -62,6 +62,13 @@ Si gioca qui: https://tannoiser2.github.io/Napoleon-Last-Battles/ (e nella ludot
   la difesa) e gli Alleati restano in difesa fino a sera.
   Spunti dai giocatori esperti: Moves n. 31 (recensione e varianti), il resoconto di Ligny di George Nap
   (spigames.net), le recensioni di Wavre e Ligny.
+  Dall'articolo di Bob Merry sulle tattiche del sistema Napoleon at Waterloo (grognard.com): l'IA abbassa
+  volontariamente il rapporto a 3-1 quando conviene (contro chi non può ritirarsi elimina quasi come un 4-1,
+  senza scambi), risolve prima gli attacchi al centro di un gruppo di bersagli così che le avanzate chiudano la
+  ritirata ai vicini, avanza con l'unità più debole nell'esagono che taglia la ritirata a un nemico ancora da
+  attaccare, sceglie per l'attacco gli esagoni che coprono le vie di fuga del bersaglio e non si ferma accanto a
+  nemici che la costringerebbero a un attacco a 1-3. Con 48 partite per lato: Francesi da 30 a 35 vittorie
+  contro gli stessi Alleati; Alleati da 10 a 13 vittorie contro gli stessi Francesi.
 - **Online** (`scripts/rete.gd`): stanza con codice di 4 lettere, decisioni numerate nel registro della stanza
   (`napoleonlb/rooms/<codice>`); i dadi sono deterministici, le due copie restano identiche. Se l'amico non entra,
   l'altra parte la guida l'IA. Le regole del database sono quelle comuni della ludoteca.
