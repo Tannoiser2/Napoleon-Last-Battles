@@ -134,6 +134,16 @@ chi arriva coi rinforzi entra con loro. Il rifornimento (14.0) vale solo nella c
 giorno, e il tasto «Rifornimento» mostra in ogni momento la rete stradale collegata al bordo amico e cerchia in
 arancione le unità che ne sarebbero tagliate fuori.
 
+«Come andò»: nella scheda della campagna, il pulsante «Come andò: la campagna vera, ora per ora» fa scorrere la
+campagna storica dal 16 giugno alle 14 alla notte del 18, un turno di gioco alla volta, senza intervento: le pedine
+marciano da sole (per le strade, entro i loro punti movimento) verso le posizioni dei resoconti storici, le frecce
+mostrano gli attacchi, le perdite documentate eliminano le unità e i riquadri sulla mappa spiegano i momenti chiave
+(d'Erlon fra Ligny e Quatre Bras, la carica di Kellermann, la ritirata su Wavre, Hougoumont, l'attacco di d'Erlon e la
+carica della Union, le cariche di Ney, Plancenoit, la Guardia, Wavre). Si può mettere in pausa, tornare indietro,
+cambiare ritmo e lasciare che la telecamera segua l'azione. La ricostruzione è a livello di corpo e di divisione:
+nessuna fonte dà le posizioni ora per ora di ogni brigata (dati in assets/dati/storia.json, motore in
+scripts/storia.gd).
+
 Pannello di combattimento: in alto le due forze, sotto le unità coinvolte, poi ogni modificatore in parole
 (terreno, ruscelli, dimezzamenti, armi combinate, capi...), infine colonna, «Attacca!» e «Annulla». Nella
 campagna il tasto «Comando» mostra le aree di comando (5 esagoni i comandanti, 3 gli ufficiali) e cerchia di

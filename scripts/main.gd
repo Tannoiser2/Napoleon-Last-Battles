@@ -104,6 +104,18 @@ var scelta_modo := "ia"
 var opz_scelte := {}          # regole opzionali e varianti scelte nel menu (chiave -> bool)
 var opz_opzionali := false
 var menu_regole_aperte := false
+# «Come andò»: rievocazione della campagna
+var storia: Storia = null
+var riev_pausa := false
+var riev_attesa := 0.0
+var riev_vel := 1.0
+var riev_foto := {}            # turno -> [stato del motore, ordini] per tornare indietro
+var riev_box: Array = []       # [[pannello, esagono]]
+var riev_testo: RichTextLabel
+var riev_diario: RichTextLabel
+var riev_bt_pausa: Button
+var riev_segui := true
+var nodo_riev: Node3D
 
 # interfaccia
 var lbl_titolo: Label
@@ -252,6 +264,11 @@ func img_pedina(id: String, ridotta := false) -> String:
 
 func pulisci() -> void:
 	menu_aperto = false
+	storia = null
+	riev_box.clear()
+	if nodo_riev != null and is_instance_valid(nodo_riev):
+		nodo_riev.queue_free()
+	nodo_riev = null
 	for c in schermo.get_children():
 		c.queue_free()
 	in_partita = false
@@ -630,7 +647,7 @@ func _aggiorna_pezzi() -> void:
 			if id.begins_with("u"):
 				if m.dem_unita(id):
 					demo = true
-				if m.comando() and m.lato_di(id) == int(m.s["lato"]) and not m.in_comando(id) and not m.notte():
+				if storia == null and m.comando() and m.lato_di(id) == int(m.s["lato"]) and not m.in_comando(id) and not m.notte():
 					ooc = true
 		if demo or ooc:
 			var lb := Label3D.new()
@@ -942,7 +959,7 @@ func _frecce_attacco(att: Array, dif: Array, pos: Dictionary, colore: Color) -> 
 func _aggiorna_evidenze() -> void:
 	for c in nodo_evid.get_children():
 		c.queue_free()
-	if m == null:
+	if m == null or storia != null:
 		return
 	for h in rag:
 		var e := _esagono_mesh(Color(0.25, 0.8, 0.3, 0.36))
@@ -1148,7 +1165,7 @@ func _unhandled_input(ev: InputEvent) -> void:
 				mouse_prec = mb.position
 				mouse_giu = mb.position
 			else:
-				if mb.button_index == MOUSE_BUTTON_LEFT and mb.position.distance_to(mouse_giu) < 10:
+				if mb.button_index == MOUSE_BUTTON_LEFT and mb.position.distance_to(mouse_giu) < 10 and storia == null:
 					_clic(_esagono_sotto(mb.position))
 				elif mb.button_index == MOUSE_BUTTON_RIGHT and mb.position.distance_to(mouse_giu) < 8:
 					_annulla_selezione()
@@ -1559,6 +1576,10 @@ func _menu_scheda() -> void:
 			_menu_scheda(), 17))
 	v.add_child(HSeparator.new())
 	v.add_child(bottone("Alle armi!", _avvia_locale, 30))
+	if k == "campagna":
+		var bs := bottone("Come andò: la campagna vera, ora per ora", _avvia_storia, 20)
+		bs.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		v.add_child(bs)
 	var r2 := HFlowContainer.new()
 	r2.add_theme_constant_override("h_separation", 8)
 	r2.add_theme_constant_override("v_separation", 8)
@@ -3012,6 +3033,9 @@ func _mostra_fine() -> void:
 # Ciclo: IA, rete, decisioni
 
 func _process(delta: float) -> void:
+	if storia != null:
+		_process_storia(delta)
+		return
 	if not in_partita or m == null or m.finita():
 		return
 	if not coda_rapporti.is_empty() and not popup_aperto and not batt_aperta and _ci_sono_umani():
@@ -3149,3 +3173,245 @@ func _salva(subito: bool) -> void:
 		salvataggio_in_corso = true
 		await net.salva_partita(st)
 		salvataggio_in_corso = false
+
+
+# =============================================================================================
+# «Come andò»: la campagna storica rievocata turno per turno (assets/dati/storia.json, scripts/storia.gd)
+
+func _avvia_storia() -> void:
+	online = false
+	umani = [false, false]
+	m = Motore.new()
+	m.nuova({"scen": "campagna", "seed": 1})
+	pulisci()
+	storia = Storia.new(m)
+	riev_foto = {-1: [m.s.duplicate(true), {}]}
+	riev_pausa = false
+	riev_attesa = 3.0
+	in_partita = true
+	sel_hex = ""
+	_annulla_selezione()
+	nodo_riev = Node3D.new()
+	mondo.add_child(nodo_riev)
+	_hud_storia()
+	_aggiorna_pezzi()
+	_inquadra_scenario()
+	distanza = 34.0
+	_aggiorna_camera()
+	riev_testo.text = "[b]%s[/b]\n\n%s\n\n[i]%s[/i]" % [storia.dati["titolo"], "Le pedine si muovono da sole, un'ora di gioco alla volta, seguendo i resoconti storici. Si può mettere in pausa, tornare indietro, girare e ingrandire la mappa.", storia.dati["nota"]]
+
+func _hud_storia() -> void:
+	var barra := PanelContainer.new()
+	barra.add_theme_stylebox_override("panel", stile(C_BLU_SCURO, C_ORO, 0, 0))
+	barra.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	barra.custom_minimum_size.y = 62
+	schermo.add_child(barra)
+	var hb := HBoxContainer.new()
+	hb.add_theme_constant_override("separation", 14)
+	barra.add_child(hb)
+	lbl_titolo = riga_lbl("COME ANDÒ", F_TITOLO, 28, C_ORO)
+	hb.add_child(lbl_titolo)
+	lbl_data = riga_lbl("15-16 giugno 1815", F_GRASSETTO, 21, Color(0.97, 0.94, 0.86))
+	lbl_data.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lbl_data.clip_text = true
+	hb.add_child(lbl_data)
+	hb.add_child(bottone("Da capo", func(): _storia_vai(-1), 16))
+	hb.add_child(bottone("Indietro", func(): _storia_vai(storia.turno - 1), 16))
+	riev_bt_pausa = bottone("Pausa", func():
+		riev_pausa = not riev_pausa
+		riev_bt_pausa.text = "Riprendi" if riev_pausa else "Pausa", 16)
+	riev_bt_pausa.custom_minimum_size.x = 110
+	hb.add_child(riev_bt_pausa)
+	hb.add_child(bottone("Avanti", func(): _storia_passo(), 16))
+	var ob := OptionButton.new()
+	for x in ["lento", "normale", "veloce"]:
+		ob.add_item("Ritmo " + x)
+	ob.selected = 1
+	ob.item_selected.connect(func(i): riev_vel = [0.5, 1.0, 2.2][i])
+	hb.add_child(ob)
+	var bs := CheckButton.new()
+	bs.text = "Segui l'azione"
+	bs.button_pressed = riev_segui
+	bs.toggled.connect(func(on): riev_segui = on)
+	hb.add_child(bs)
+	hb.add_child(bottone("Vista", _cambia_vista, 16))
+	hb.add_child(bottone("Menu", mostra_menu, 16))
+	var sx := pannello(Color(0.96, 0.92, 0.83, 0.95))
+	sx.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	sx.offset_top = 74
+	sx.offset_bottom = -12
+	sx.offset_left = 12
+	sx.offset_right = 470
+	schermo.add_child(sx)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 8)
+	sx.add_child(col)
+	riev_testo = RichTextLabel.new()
+	riev_testo.bbcode_enabled = true
+	riev_testo.fit_content = true
+	riev_testo.custom_minimum_size = Vector2(420, 120)
+	riev_testo.add_theme_font_override("normal_font", F_TESTO)
+	riev_testo.add_theme_font_override("bold_font", F_TITOLO)
+	riev_testo.add_theme_font_override("italics_font", F_CORSIVO)
+	riev_testo.add_theme_font_size_override("normal_font_size", 19)
+	riev_testo.add_theme_font_size_override("bold_font_size", 24)
+	riev_testo.add_theme_font_size_override("italics_font_size", 16)
+	riev_testo.add_theme_color_override("default_color", C_INCHIOSTRO)
+	col.add_child(riev_testo)
+	col.add_child(HSeparator.new())
+	col.add_child(riga_lbl("Le ore precedenti", F_GRASSETTO, 17, C_BLU))
+	riev_diario = RichTextLabel.new()
+	riev_diario.bbcode_enabled = true
+	riev_diario.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	riev_diario.custom_minimum_size.x = 420
+	riev_diario.add_theme_font_override("normal_font", F_TESTO)
+	riev_diario.add_theme_font_override("bold_font", F_GRASSETTO)
+	riev_diario.add_theme_font_size_override("normal_font_size", 15)
+	riev_diario.add_theme_font_size_override("bold_font_size", 15)
+	riev_diario.add_theme_color_override("default_color", C_SPENTO)
+	col.add_child(riev_diario)
+	tip = pannello(Color(1, 0.98, 0.92, 0.95))
+	tip.visible = false
+	tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	schermo.add_child(tip)
+	tip_lbl = etichetta("", F_TESTO, 16)
+	tip_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+	tip.add_child(tip_lbl)
+	notifica = VBoxContainer.new()
+	notifica.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	notifica.offset_top = 84
+	notifica.offset_left = -340
+	notifica.offset_right = 340
+	notifica.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	schermo.add_child(notifica)
+
+func _process_storia(delta: float) -> void:
+	# i riquadri seguono il loro esagono sullo schermo
+	var vp := get_viewport().get_visible_rect().size
+	for b in riev_box:
+		var pn: Control = b[0]
+		if not is_instance_valid(pn):
+			continue
+		var p3 := _v3(b[1], 0.15)
+		if cam.is_position_behind(p3):
+			pn.visible = false
+			continue
+		var p := cam.unproject_position(p3)
+		pn.visible = true
+		var dim := pn.size
+		var pos := p + Vector2(24, -dim.y - 24)
+		pos.x = clampf(pos.x, 484, maxf(484, vp.x - dim.x - 10))
+		pos.y = clampf(pos.y, 74, maxf(74, vp.y - dim.y - 10))
+		pn.position = pos
+	if riev_pausa or popup_aperto or storia.turno >= storia.ultimo_turno():
+		return
+	riev_attesa -= delta * riev_vel
+	if riev_attesa <= 0.0:
+		_storia_passo()
+
+func _storia_passo() -> void:
+	if storia == null or storia.turno >= storia.ultimo_turno():
+		return
+	var r := storia.passo()
+	riev_foto[storia.turno] = [m.s.duplicate(true), storia.ordini.duplicate(true)]
+	percorsi = r["percorsi"]
+	_aggiorna_pezzi()
+	_storia_mostra(r["attacchi"])
+	var v := storia.voce(storia.turno)
+	var parole := str(v.get("testo", "")).split(" ").size()
+	for b in v.get("box", []):
+		parole += str(b["testo"]).split(" ").size()
+	riev_attesa = clampf(3.0 + parole * 0.12, 4.0, 16.0)
+
+func _storia_vai(t: int) -> void:
+	if storia == null:
+		return
+	t = clampi(t, -1, storia.ultimo_turno())
+	if not riev_foto.has(t):
+		return
+	m.s = riev_foto[t][0].duplicate(true)
+	m._ricalcola()
+	storia.turno = t
+	storia.ordini = riev_foto[t][1].duplicate(true)
+	percorsi.clear()
+	_aggiorna_pezzi()
+	_storia_mostra([])
+	riev_pausa = true
+	riev_bt_pausa.text = "Riprendi"
+
+## Testo del turno, riquadri sulla mappa, frecce degli attacchi e inquadratura
+func _storia_mostra(attacchi: Array) -> void:
+	for c in nodo_riev.get_children():
+		c.queue_free()
+	for b in riev_box:
+		if is_instance_valid(b[0]):
+			b[0].queue_free()
+	riev_box.clear()
+	var t := storia.turno
+	if t < 0:
+		lbl_data.text = "16 giugno 1815"
+		riev_testo.text = "[b]%s[/b]" % storia.dati["titolo"]
+		riev_diario.text = ""
+		return
+	var v := storia.voce(t)
+	var cond := " · notte" if m.notte() else (" · pioggia" if m.pioggia() else "")
+	lbl_data.text = "%d giugno 1815, ore %s%s · perdite: Francesi %d, Prussiani %d, Alleati %d" % [m.giorno(), m.ora(), cond, int(m.s["perdite"]["FR"]), int(m.s["perdite"]["PR"]), int(m.s["perdite"]["AA"])]
+	riev_testo.text = "[b]%d giugno, ore %s[/b]\n%s" % [m.giorno(), m.ora(), str(v.get("testo", "Le truppe continuano a muoversi."))]
+	var righe := []
+	for i in range(t - 1, -1, -1):
+		var w := storia.voce(i)
+		if w.has("testo"):
+			m.s["turno"] = i
+			righe.append("[b]%d giugno, %s[/b] %s" % [m.giorno(), m.ora(), w["testo"]])
+	m.s["turno"] = t
+	riev_diario.text = "\n\n".join(righe)
+	# frecce
+	for a in attacchi:
+		nodo_riev.add_child(_freccia(a[0], a[1], Color(0.25, 0.45, 0.95) if int(a[2]) == 0 else Color(0.85, 0.15, 0.1)))
+	# riquadri informativi
+	var punti := []
+	for b in v.get("box", []):
+		var h: String = b["h"]
+		punti.append(Mappa.pos(h))
+		var an := _anello(C_ORO, 0.5)
+		an.position = _v3(h)
+		nodo_riev.add_child(an)
+		var pn := pannello(Color(1, 0.97, 0.88, 0.95), C_ORO)
+		pn.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var vb := VBoxContainer.new()
+		vb.add_theme_constant_override("separation", 2)
+		pn.add_child(vb)
+		var tt := etichetta(b["titolo"], F_GRASSETTO, 18, C_ROSSO)
+		tt.custom_minimum_size.x = 300
+		vb.add_child(tt)
+		var tx := etichetta(b["testo"], F_TESTO, 16)
+		tx.custom_minimum_size.x = 300
+		vb.add_child(tx)
+		pn.custom_minimum_size.x = 320
+		schermo.add_child(pn)
+		riev_box.append([pn, h])
+	if punti.is_empty():
+		for a in attacchi:
+			punti.append(Mappa.pos(a[1]))
+	if riev_segui and not punti.is_empty():
+		# il primo riquadro è il fatto principale; gli altri si inquadrano solo se sono vicini
+		var c := Vector2.ZERO
+		var usati := []
+		for p in punti:
+			if p.distance_to(punti[0]) < 1400.0:
+				usati.append(p)
+		punti = usati
+		for p in punti:
+			c += p
+		c /= float(punti.size())
+		var raggio := 0.0
+		for p in punti:
+			raggio = maxf(raggio, p.distance_to(c))
+		var dist := clampf(10.0 + raggio * SC * 1.8, 12.0, 30.0)
+		# il pannello del racconto copre la sinistra: il punto va al centro della parte libera
+		var destra := Vector3(cos(yaw), 0, -sin(yaw))
+		var mira := Vector3(c.x * SC, 0, c.y * SC) - destra * dist * 0.12
+		var tw := create_tween().set_parallel(true)
+		tw.tween_property(self, "bersaglio_cam", mira, 1.2).set_trans(Tween.TRANS_SINE)
+		tw.tween_property(self, "distanza", dist, 1.2).set_trans(Tween.TRANS_SINE)
+		tw.tween_method(func(_x): _aggiorna_camera(), 0.0, 1.0, 1.25)

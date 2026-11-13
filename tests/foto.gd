@@ -22,6 +22,16 @@ func _run():
 		quit(); return
 	if modo == "menu":
 		quit(); return
+	if modo == "storia":
+		# rievocazione: si va al turno indicato e si fotografa dopo l'animazione
+		main._avvia_storia()
+		main.riev_pausa = true
+		var fino := int(sc)
+		for i in fino:
+			main._storia_passo()
+		await create_timer(3.0).timeout
+		await shot("storia_%d" % fino)
+		quit(); return
 	if modo == "nuova":
 		main._menu_nuova()
 		await shot("nuova")

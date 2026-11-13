@@ -1,0 +1,2725 @@
+{
+ "titolo": "Come andò: la campagna del 16-18 giugno 1815",
+ "nota": "Ricostruzione a livello di corpo e di divisione dai resoconti storici (Siborne, Hofschröer, Chandler, Hamilton-Williams e le cronologie del campo di battaglia). Le posizioni ora per ora delle singole brigate non sono documentate: sono state scelte per rappresentare quello che si sa dei movimenti, degli attacchi e delle perdite.",
+ "gruppi": {
+  "Girard": [
+   "u195",
+   "u196"
+  ],
+  "Durutte": [
+   "u97",
+   "u98"
+  ],
+  "GiovaneGuardia": [
+   "u76",
+   "u77",
+   "u72"
+  ],
+  "VecchiaGuardia": [
+   "u58",
+   "u68",
+   "u78",
+   "u79",
+   "u69"
+  ],
+  "CavGuardia": [
+   "u64",
+   "u99",
+   "u65"
+  ],
+  "Hougoumont": [
+   "u42"
+  ],
+  "LaHayeSainte": [
+   "u24"
+  ],
+  "Papelotte": [
+   "u29"
+  ],
+  "Unione": [
+   "u51",
+   "u50"
+  ],
+  "Pajol": [
+   "u84",
+   "u133",
+   "u134"
+  ]
+ },
+ "turni": [
+  {
+   "t": 0,
+   "testo": "Il 15 giugno Napoleone ha passato la Sambre a Charleroi, in mezzo ai due eserciti alleati. Ora li attacca separati: con il centro e la destra contro i Prussiani di Blücher, schierati dietro il ruscello della Ligne; con la sinistra, affidata a Ney, contro l'incrocio di Quatre Bras, che tiene la strada fra Wellington e Blücher.",
+   "box": [
+    {
+     "h": "1744",
+     "titolo": "Quatre Bras, ore 14",
+     "testo": "Ney attacca con il II corpo di Reille: Bachelu verso Piraumont, Foy su Gemioncourt, Jérôme verso il bosco di Bossu. Davanti ha solo i 7.000 olandesi e nassauesi di Perponcher: Wellington è ancora lontano."
+    },
+    {
+     "h": "3256",
+     "titolo": "Ligny, ore 14:30",
+     "testo": "Blücher tiene una catena di villaggi lungo la Ligne: Wagnelée, La Haye, Saint-Amand, Ligny, Sombreffe. Vandamme attacca Saint-Amand, la divisione Girard punta su La Haye."
+    }
+   ],
+   "ordini": [
+    {
+     "g": "FR:II",
+     "h": [
+      "1846",
+      "1946",
+      "1645",
+      "1646",
+      "1745",
+      "1543",
+      "1544",
+      "1647"
+     ]
+    },
+    {
+     "g": "FR:III",
+     "h": [
+      "3257",
+      "3157",
+      "3358",
+      "3258"
+     ]
+    },
+    {
+     "g": "Girard",
+     "h": [
+      "3055",
+      "3056"
+     ]
+    },
+    {
+     "g": "FR:IV",
+     "h": [
+      "3657",
+      "3757",
+      "3857",
+      "3956"
+     ]
+    },
+    {
+     "g": "Pajol",
+     "h": [
+      "4557",
+      "4657",
+      "4456"
+     ]
+    },
+    {
+     "g": "FR:IIC",
+     "h": [
+      "4157",
+      "4257",
+      "4357"
+     ]
+    },
+    {
+     "g": "FR:I",
+     "c": "1462",
+     "r": 2
+    }
+   ],
+   "attacchi": [
+    {
+     "da": "FR:II",
+     "su": "1744"
+    },
+    {
+     "da": "FR:III",
+     "su": "3256"
+    }
+   ],
+   "capi": [
+    {
+     "c": "c202",
+     "h": "1641"
+    }
+   ]
+  },
+  {
+   "t": 1,
+   "testo": "Ore 15. A Quatre Bras Foy prende la fattoria di Gemioncourt e Perponcher ripiega sull'incrocio. A Ligny Saint-Amand cade, viene ripresa, cade di nuovo; Gérard attacca Ligny, dove i Prussiani combattono casa per casa dietro i muri. Il I corpo di d'Erlon, in marcia verso Quatre Bras, riceve l'ordine di Napoleone di portarsi alle spalle dei Prussiani.",
+   "box": [
+    {
+     "h": "1641",
+     "titolo": "Arriva Picton",
+     "testo": "Verso le 15:30 la divisione Picton arriva da Bruxelles e si schiera lungo la strada di Namur: è il primo rinforzo britannico, e salva l'incrocio."
+    },
+    {
+     "h": "3755",
+     "titolo": "Ligny",
+     "testo": "Il villaggio passa di mano più volte. Le perdite sono altissime da tutte e due le parti."
+    }
+   ],
+   "ordini": [
+    {
+     "g": "AA:N2",
+     "h": [
+      "1641",
+      "1542",
+      "1642"
+     ]
+    },
+    {
+     "g": "FR:II",
+     "h": [
+      "1744",
+      "1846",
+      "1946",
+      "2045",
+      "1645",
+      "1543",
+      "1544",
+      "1745"
+     ]
+    },
+    {
+     "g": "AA:5",
+     "h": [
+      "1740",
+      "1840",
+      "1741",
+      "1641"
+     ]
+    },
+    {
+     "g": "u178",
+     "h": [
+      "3355"
+     ]
+    },
+    {
+     "g": "u179",
+     "h": [
+      "3354"
+     ]
+    },
+    {
+     "g": "FR:III",
+     "h": [
+      "3256",
+      "3257",
+      "3157",
+      "3358"
+     ]
+    },
+    {
+     "g": "FR:I",
+     "h": [
+      "1959",
+      "2058",
+      "1958",
+      "2059",
+      "2159",
+      "2160",
+      "2060",
+      "1960"
+     ]
+    }
+   ],
+   "attacchi": [
+    {
+     "da": "FR:IV",
+     "su": "3755"
+    },
+    {
+     "da": "FR:IV",
+     "su": "3855"
+    },
+    {
+     "da": "FR:II",
+     "su": "1641"
+    }
+   ],
+   "perdite": [
+    {
+     "g": "AA:N2",
+     "n": 1
+    },
+    {
+     "g": "PR:I",
+     "n": 1
+    },
+    {
+     "g": "FR:III",
+     "n": 1
+    }
+   ]
+  },
+  {
+   "t": 2,
+   "testo": "Ore 16. Blücher lancia il II corpo di Pirch in un contrattacco su Saint-Amand e La Haye, guidandolo di persona. A Quatre Bras arrivano i Brunswick e la divisione Alten: il Duca di Brunswick cade alla testa dei suoi ussari.",
+   "box": [
+    {
+     "h": "3256",
+     "titolo": "Il contrattacco di Blücher",
+     "testo": "Pirch riprende Saint-Amand: Vandamme chiede aiuto e Napoleone gli manda la Giovane Guardia."
+    },
+    {
+     "h": "1542",
+     "titolo": "Morte del Duca di Brunswick",
+     "testo": "Federico Guglielmo di Brunswick, il «Duca Nero», viene ucciso mentre i suoi cercano di fermare l'avanzata francese."
+    }
+   ],
+   "ordini": [
+    {
+     "g": "FR:III",
+     "h": [
+      "3257",
+      "3157",
+      "3358",
+      "3258"
+     ]
+    },
+    {
+     "g": "PR:II",
+     "h": [
+      "3256",
+      "3355",
+      "3354",
+      "3254",
+      "3253",
+      "3454",
+      "3155",
+      "3555"
+     ]
+    },
+    {
+     "g": "AA:B",
+     "h": [
+      "1542",
+      "1541",
+      "1540",
+      "1642"
+     ]
+    },
+    {
+     "g": "AA:3",
+     "h": [
+      "1639",
+      "1539",
+      "1540",
+      "1640"
+     ]
+    },
+    {
+     "g": "GiovaneGuardia",
+     "h": [
+      "3258",
+      "3159"
+     ]
+    }
+   ],
+   "attacchi": [
+    {
+     "da": "PR:II",
+     "su": "3257"
+    },
+    {
+     "da": "FR:II",
+     "su": "1641"
+    },
+    {
+     "da": "FR:IV",
+     "su": "3755"
+    }
+   ],
+   "perdite": [
+    {
+     "g": "PR:II",
+     "n": 1
+    },
+    {
+     "g": "FR:II",
+     "n": 1
+    },
+    {
+     "g": "AA:B",
+     "n": 1
+    },
+    {
+     "c": "c209"
+    }
+   ]
+  },
+  {
+   "t": 3,
+   "testo": "Ore 17. Ney, che vede crescere le forze di Wellington, richiama d'Erlon verso Quatre Bras. D'Erlon era ormai in vista di Wagnelée, ma le sue colonne, scambiate per nemiche, avevano gettato nel panico le truppe di Vandamme: obbedisce a Ney e torna indietro, lasciando sul posto solo la divisione Durutte. Il suo corpo non combatterà né a Ligny né a Quatre Bras.",
+   "box": [
+    {
+     "h": "2152",
+     "titolo": "Il grande «se» del 16 giugno",
+     "testo": "Con i 20.000 uomini di d'Erlon alle spalle dei Prussiani, Ligny poteva diventare una disfatta per Blücher. Senza di loro, Napoleone deve finire la battaglia da solo."
+    },
+    {
+     "h": "1641",
+     "titolo": "La carica di Kellermann",
+     "testo": "Ney lancia i corazzieri di Kellermann sull'incrocio: travolgono il 69° britannico e ne prendono la bandiera, ma i quadrati e i cannoni li respingono."
+    }
+   ],
+   "ordini": [
+    {
+     "g": "FR:I",
+     "h": [
+      "2152",
+      "2253",
+      "2153",
+      "2252",
+      "2051",
+      "2052",
+      "2151",
+      "2154"
+     ]
+    },
+    {
+     "g": "Durutte",
+     "h": [
+      "2952",
+      "2953"
+     ]
+    },
+    {
+     "g": "FR:IIIC",
+     "h": [
+      "1642",
+      "1742",
+      "1743"
+     ]
+    },
+    {
+     "g": "FR:IV",
+     "h": [
+      "3657",
+      "3757",
+      "3856",
+      "3956"
+     ]
+    }
+   ],
+   "attacchi": [
+    {
+     "da": "FR:IIIC",
+     "su": "1641"
+    },
+    {
+     "da": "FR:III",
+     "su": "3256"
+    },
+    {
+     "da": "FR:IV",
+     "su": "3755"
+    }
+   ],
+   "perdite": [
+    {
+     "g": "AA:3",
+     "n": 1
+    },
+    {
+     "g": "FR:IIIC",
+     "n": 1
+    },
+    {
+     "g": "FR:IV",
+     "n": 1
+    },
+    {
+     "g": "PR:I",
+     "n": 1
+    }
+   ]
+  },
+  {
+   "t": 4,
+   "testo": "Ore 18. A Quatre Bras la cavalleria di Kellermann torna indietro decimata; arriva la Guardia britannica di Cooke, che riprende il bosco di Bossu. A Ligny i due eserciti sono esausti; Blücher ha impegnato quasi tutte le riserve.",
+   "box": [
+    {
+     "h": "1440",
+     "titolo": "Il bosco di Bossu",
+     "testo": "Le guardie di Maitland e Byng ripuliscono il bosco dai fanti di Jérôme."
+    }
+   ],
+   "ordini": [
+    {
+     "g": "FR:IIIC",
+     "h": [
+      "1647",
+      "1648",
+      "1747"
+     ]
+    },
+    {
+     "g": "AA:1",
+     "h": [
+      "1440",
+      "1441",
+      "1442"
+     ]
+    },
+    {
+     "g": "FR:I",
+     "h": [
+      "1955",
+      "2055",
+      "1954",
+      "2054",
+      "1956",
+      "2056",
+      "1856",
+      "1855"
+     ]
+    },
+    {
+     "g": "VecchiaGuardia",
+     "h": [
+      "3756",
+      "3856",
+      "3756",
+      "3856",
+      "3657"
+     ]
+    }
+   ],
+   "attacchi": [
+    {
+     "da": "AA:1",
+     "su": "1543"
+    },
+    {
+     "da": "FR:III",
+     "su": "3256"
+    },
+    {
+     "da": "FR:IV",
+     "su": "3855"
+    }
+   ],
+   "perdite": [
+    {
+     "g": "PR:II",
+     "n": 1
+    },
+    {
+     "g": "FR:III",
+     "n": 1
+    }
+   ]
+  },
+  {
+   "t": 5,
+   "testo": "Ore 19:30. Sotto un temporale Napoleone sferra il colpo decisivo: la Vecchia Guardia, con i corazzieri di Milhaud, sfonda il centro prussiano attraverso Ligny. Blücher guida di persona una carica di cavalleria, il cavallo gli viene ucciso e lui resta a terra, travolto due volte dalle cariche.",
+   "box": [
+    {
+     "h": "3755",
+     "titolo": "La Guardia sfonda",
+     "testo": "Il centro prussiano cede: le colonne della Guardia escono da Ligny verso Brye."
+    },
+    {
+     "h": "3552",
+     "titolo": "Blücher a terra",
+     "testo": "Il vecchio maresciallo, contuso, viene portato via a fatica. Il comando passa per qualche ora a Gneisenau."
+    }
+   ],
+   "ordini": [
+    {
+     "g": "PR:I",
+     "h": [
+      "3552",
+      "3553",
+      "3452",
+      "3453",
+      "3551",
+      "3451",
+      "3652",
+      "3653"
+     ]
+    },
+    {
+     "g": "PR:II",
+     "h": [
+      "3651",
+      "3751",
+      "3650",
+      "3750",
+      "3851",
+      "3850",
+      "3549",
+      "3449"
+     ]
+    },
+    {
+     "g": "VecchiaGuardia",
+     "h": [
+      "3755",
+      "3855",
+      "3754",
+      "3656"
+     ]
+    },
+    {
+     "g": "FR:IVC",
+     "h": [
+      "3854",
+      "3955",
+      "3954"
+     ]
+    },
+    {
+     "g": "FR:IV",
+     "h": [
+      "3856",
+      "3956",
+      "3657",
+      "3757"
+     ]
+    },
+    {
+     "g": "FR:III",
+     "h": [
+      "3256",
+      "3357",
+      "3457",
+      "3155"
+     ]
+    }
+   ],
+   "attacchi": [
+    {
+     "da": "VecchiaGuardia",
+     "su": "3755"
+    },
+    {
+     "da": "FR:IVC",
+     "su": "3854"
+    }
+   ],
+   "perdite": [
+    {
+     "g": "PR:I",
+     "n": 2
+    },
+    {
+     "g": "PR:II",
+     "n": 2
+    },
+    {
+     "g": "FR:IV",
+     "n": 1
+    }
+   ],
+   "capi": [
+    {
+     "c": "c210",
+     "h": "3552"
+    },
+    {
+     "c": "c215",
+     "h": "3656"
+    }
+   ]
+  },
+  {
+   "t": 6,
+   "testo": "Ore 20. A Quatre Bras Wellington, ora più forte di Ney, contrattacca e riprende Gemioncourt e Piraumont: la giornata finisce dove era cominciata, 4.800 perdite alleate e 4.300 francesi. A Ligny i Prussiani ripiegano verso Brye e Sombreffe, mentre Thielmann tiene la destra. Arriva il VI corpo di Lobau.",
+   "box": [
+    {
+     "h": "1744",
+     "titolo": "Quatre Bras: pareggio",
+     "testo": "Ney non ha preso l'incrocio, ma ha impedito a Wellington di aiutare Blücher."
+    }
+   ],
+   "ordini": [
+    {
+     "g": "FR:II",
+     "h": [
+      "1846",
+      "1947",
+      "1648",
+      "1647",
+      "1748",
+      "1747",
+      "1848",
+      "1648"
+     ]
+    },
+    {
+     "g": "AA:N2",
+     "h": [
+      "1744",
+      "1845"
+     ]
+    },
+    {
+     "g": "AA:5",
+     "h": [
+      "1844",
+      "2045",
+      "1945"
+     ]
+    },
+    {
+     "g": "AA:B",
+     "h": [
+      "1643",
+      "1644"
+     ]
+    },
+    {
+     "g": "AA:3",
+     "h": [
+      "1642",
+      "1643",
+      "1743"
+     ]
+    },
+    {
+     "g": "PR:I",
+     "c": "3551",
+     "r": 2
+    },
+    {
+     "g": "PR:II",
+     "c": "3750",
+     "r": 2
+    },
+    {
+     "g": "FR:VI",
+     "c": "3561",
+     "r": 1
+    }
+   ],
+   "attacchi": [
+    {
+     "da": "AA:5",
+     "su": "1846"
+    }
+   ],
+   "perdite": [
+    {
+     "g": "FR:II",
+     "n": 1
+    },
+    {
+     "g": "PR:III",
+     "n": 1
+    }
+   ]
+  },
+  {
+   "t": 7,
+   "testo": "Notte. Napoleone ha vinto la sua ultima battaglia, ma non ha distrutto l'esercito prussiano: 16.000 Prussiani sono fuori combattimento, altri 8.000 si disperdono. Gneisenau ordina la ritirata non verso est, sulle proprie linee, ma verso nord, su Tilly e Wavre: resterà così vicino a Wellington. Il I corpo di d'Erlon arriva a Frasnes, troppo tardi.",
+   "box": [
+    {
+     "h": "3544",
+     "titolo": "La decisione di Gneisenau",
+     "testo": "Ritirarsi su Wavre significa poter tornare in aiuto di Wellington. È la scelta che deciderà la campagna."
+    }
+   ],
+   "ordini": [
+    {
+     "g": "PR:I",
+     "h": [
+      "3544",
+      "3545",
+      "3444",
+      "3445",
+      "3644",
+      "3645",
+      "3543",
+      "3643"
+     ]
+    },
+    {
+     "g": "PR:II",
+     "h": [
+      "3838",
+      "3839",
+      "3738",
+      "3739",
+      "3938",
+      "3939",
+      "3837",
+      "3937"
+     ]
+    },
+    {
+     "g": "FR:I",
+     "h": [
+      "1551",
+      "1552",
+      "1651",
+      "1652",
+      "1450",
+      "1451",
+      "1550",
+      "1653"
+     ]
+    },
+    {
+     "g": "FR:III",
+     "h": [
+      "3256",
+      "3357",
+      "3457",
+      "3353"
+     ]
+    },
+    {
+     "g": "Durutte",
+     "h": [
+      "3053",
+      "3054"
+     ]
+    }
+   ],
+   "capi": [
+    {
+     "c": "c210",
+     "h": "3544"
+    }
+   ]
+  },
+  {
+   "t": 8,
+   "testo": "Mezzanotte. Le colonne prussiane sfilano nel buio verso nord. Thielmann, l'ultimo a lasciare il campo, ripiega verso est su Gembloux per poi girare anche lui verso Wavre.",
+   "ordini": [
+    {
+     "g": "PR:III",
+     "h": [
+      "5345",
+      "5346",
+      "5445",
+      "5446",
+      "5245",
+      "5246",
+      "5344",
+      "5444"
+     ]
+    },
+    {
+     "g": "PR:I",
+     "h": [
+      "4126",
+      "4127",
+      "4226",
+      "4227",
+      "4128",
+      "4228",
+      "4027",
+      "4028"
+     ]
+    },
+    {
+     "g": "PR:II",
+     "h": [
+      "4425",
+      "4426",
+      "4526",
+      "4424",
+      "4325",
+      "4326",
+      "4427",
+      "4527"
+     ]
+    }
+   ],
+   "capi": [
+    {
+     "c": "c210",
+     "h": "4425"
+    }
+   ]
+  },
+  {
+   "t": 9,
+   "testo": "Ore 3 del 17 giugno. I Francesi bivaccano sul campo di Ligny. Napoleone, stanco e convinto che i Prussiani fuggano verso Namur, non ordina nessun inseguimento."
+  },
+  {
+   "t": 10,
+   "testo": "Alba del 17. Wellington, a Quatre Bras, non sa ancora come è finita a Ligny. Arrivano da ovest la cavalleria di Uxbridge e altre divisioni. Il I e il II corpo prussiano passano Mont-Saint-Guibert.",
+   "ordini": [
+    {
+     "g": "AA:C",
+     "h": [
+      "1540",
+      "1640",
+      "1740",
+      "1539",
+      "1639",
+      "1739",
+      "1638",
+      "1538"
+     ]
+    },
+    {
+     "g": "PR:I",
+     "h": [
+      "3908",
+      "4008",
+      "3907",
+      "3807",
+      "4007",
+      "3909",
+      "3808",
+      "4009"
+     ]
+    },
+    {
+     "g": "PR:II",
+     "h": [
+      "4407",
+      "4408",
+      "4307",
+      "4308",
+      "4507",
+      "4508",
+      "4409",
+      "4309"
+     ]
+    }
+   ]
+  },
+  {
+   "t": 11,
+   "testo": "Ore 9. Un ufficiale torna a Quatre Bras: i Prussiani hanno perso e si ritirano su Wavre. Wellington, scoperto il fianco, decide di ripiegare su una posizione che conosce: la cresta di Mont-Saint-Jean, davanti al villaggio di Waterloo.",
+   "box": [
+    {
+     "h": "0815",
+     "titolo": "Mont-Saint-Jean",
+     "testo": "Wellington l'aveva studiata l'anno prima: una cresta dolce, con un contropendio dove nascondere le truppe e tre caposaldi davanti, Hougoumont, La Haye Sainte e Papelotte."
+    }
+   ]
+  },
+  {
+   "t": 12,
+   "testo": "Ore 10. Comincia la ritirata alleata. La fanteria sfila per la strada di Bruxelles verso Genappe; la cavalleria di Uxbridge resta indietro a coprirla. Le divisioni che arrivano da ovest vanno direttamente sulla cresta di Mont-Saint-Jean.",
+   "ordini": [
+    {
+     "g": "AA:5",
+     "h": [
+      "1015",
+      "1115",
+      "1215",
+      "1014"
+     ]
+    },
+    {
+     "g": "AA:N2",
+     "h": [
+      "1115",
+      "1314"
+     ]
+    },
+    {
+     "g": "Papelotte",
+     "h": [
+      "1315"
+     ]
+    },
+    {
+     "g": "AA:B",
+     "h": [
+      "0614",
+      "0714"
+     ]
+    },
+    {
+     "g": "AA:3",
+     "h": [
+      "0715",
+      "0815",
+      "0815"
+     ]
+    },
+    {
+     "g": "LaHayeSainte",
+     "h": [
+      "0916"
+     ]
+    },
+    {
+     "g": "AA:1",
+     "h": [
+      "0615",
+      "0615"
+     ]
+    },
+    {
+     "g": "Hougoumont",
+     "h": [
+      "0617"
+     ]
+    },
+    {
+     "g": "AA:2",
+     "h": [
+      "0515",
+      "0515",
+      "0415",
+      "0415"
+     ]
+    },
+    {
+     "g": "AA:4",
+     "h": [
+      "0414"
+     ]
+    },
+    {
+     "g": "AA:N3",
+     "h": [
+      "0314",
+      "0313",
+      "0313"
+     ]
+    },
+    {
+     "g": "AA:NC",
+     "h": [
+      "0813",
+      "0813",
+      "0913"
+     ]
+    },
+    {
+     "g": "AA:6",
+     "h": [
+      "0715",
+      "0914",
+      "0914",
+      "1215"
+     ]
+    }
+   ],
+   "capi": [
+    {
+     "c": "c202",
+     "h": "1531"
+    }
+   ]
+  },
+  {
+   "t": 13,
+   "testo": "Ore 11. A Ligny, solo ora, Napoleone dà gli ordini: Grouchy, con il III e il IV corpo e la cavalleria di Pajol ed Exelmans (33.000 uomini), deve inseguire i Prussiani; lui stesso, con il resto dell'esercito, raggiungerà Ney contro Wellington. Sono passate quasi diciotto ore dalla fine della battaglia.",
+   "box": [
+    {
+     "h": "3755",
+     "titolo": "La mattina perduta",
+     "testo": "Gli storici considerano la lentezza del 17 mattina uno degli errori decisivi: Wellington ha avuto il tempo di sganciarsi, Blücher di riordinarsi."
+    }
+   ]
+  },
+  {
+   "t": 14,
+   "testo": "Mezzogiorno. Grouchy si mette in marcia verso Gembloux, cioè verso est, dove crede che siano andati i Prussiani: ha perso il contatto e andrà a cercarli nella direzione sbagliata. Napoleone marcia con la Guardia e Lobau verso Quatre Bras per la strada di Marbais.",
+   "ordini": [
+    {
+     "g": "FR:III",
+     "h": [
+      "5038",
+      "5039",
+      "5138",
+      "5139",
+      "4938",
+      "4939",
+      "5037",
+      "5137"
+     ]
+    },
+    {
+     "g": "FR:IV",
+     "h": [
+      "5040",
+      "5140",
+      "4940",
+      "5041",
+      "5141",
+      "4941",
+      "5240",
+      "5241"
+     ]
+    },
+    {
+     "g": "Pajol",
+     "h": [
+      "5236",
+      "5237",
+      "5336"
+     ]
+    },
+    {
+     "g": "FR:IIC",
+     "h": [
+      "5137",
+      "5236",
+      "5237"
+     ]
+    },
+    {
+     "g": "VecchiaGuardia",
+     "h": [
+      "2244",
+      "2245",
+      "2344",
+      "2345",
+      "2145"
+     ]
+    },
+    {
+     "g": "GiovaneGuardia",
+     "h": [
+      "2444",
+      "2445",
+      "2443"
+     ]
+    },
+    {
+     "g": "CavGuardia",
+     "h": [
+      "2343",
+      "2443",
+      "2543"
+     ]
+    },
+    {
+     "g": "FR:VI",
+     "h": [
+      "2644",
+      "2645",
+      "2744",
+      "2745",
+      "2643",
+      "2743",
+      "2545"
+     ]
+    },
+    {
+     "g": "FR:IVC",
+     "h": [
+      "2346",
+      "2446",
+      "2546"
+     ]
+    },
+    {
+     "g": "Durutte",
+     "h": [
+      "1653",
+      "1654"
+     ]
+    }
+   ],
+   "capi": [
+    {
+     "c": "c216",
+     "h": "5039"
+    },
+    {
+     "c": "c215",
+     "h": "2344"
+    }
+   ]
+  },
+  {
+   "t": 15,
+   "testo": "Ore 13. Napoleone arriva a Quatre Bras e trova Ney fermo: gli Inglesi se ne sono andati. Si lancia all'inseguimento con la cavalleria. Le ultime truppe di Uxbridge si ritirano su Genappe.",
+   "ordini": [
+    {
+     "g": "AA:C",
+     "h": [
+      "1531",
+      "1532",
+      "1430",
+      "1431",
+      "1530",
+      "1631",
+      "1630",
+      "1429"
+     ]
+    },
+    {
+     "g": "FR:I",
+     "h": [
+      "1641",
+      "1642",
+      "1541",
+      "1542",
+      "1740",
+      "1640",
+      "1540",
+      "1741"
+     ]
+    },
+    {
+     "g": "FR:IIIC",
+     "h": [
+      "1640",
+      "1740",
+      "1739"
+     ]
+    },
+    {
+     "g": "FR:IVC",
+     "h": [
+      "1743",
+      "1843",
+      "1842"
+     ]
+    },
+    {
+     "g": "VecchiaGuardia",
+     "h": [
+      "1844",
+      "1845",
+      "1945",
+      "1745"
+     ]
+    },
+    {
+     "g": "GiovaneGuardia",
+     "h": [
+      "2044",
+      "2043"
+     ]
+    },
+    {
+     "g": "CavGuardia",
+     "h": [
+      "1743",
+      "1742",
+      "1842"
+     ]
+    },
+    {
+     "g": "FR:VI",
+     "h": [
+      "2144",
+      "2145",
+      "2244",
+      "2245",
+      "2143",
+      "2243",
+      "2046"
+     ]
+    }
+   ],
+   "capi": [
+    {
+     "c": "c215",
+     "h": "1641"
+    },
+    {
+     "c": "c217",
+     "h": "1641"
+    }
+   ]
+  },
+  {
+   "t": 16,
+   "testo": "Ore 14. Un temporale violentissimo trasforma i campi in un pantano. A Genappe i lancieri francesi si scontrano con la cavalleria britannica: i Life Guards li respingono, e la ritirata alleata continua in ordine.",
+   "box": [
+    {
+     "h": "1531",
+     "titolo": "Scontro a Genappe",
+     "testo": "Nelle strade del villaggio i lancieri di Napoleone tengono testa agli ussari; poi le Life Guards di Somerset li ricacciano indietro."
+    }
+   ],
+   "ordini": [
+    {
+     "g": "AA:C",
+     "h": [
+      "0814",
+      "1013",
+      "1414",
+      "1413",
+      "0713",
+      "0713",
+      "0613",
+      "0613",
+      "0914"
+     ]
+    },
+    {
+     "g": "FR:I",
+     "h": [
+      "1017",
+      "1017",
+      "1117",
+      "1117",
+      "1217",
+      "1217",
+      "1317",
+      "1018"
+     ]
+    },
+    {
+     "g": "FR:II",
+     "h": [
+      "0518",
+      "0518",
+      "0618",
+      "0618",
+      "0718",
+      "0718",
+      "0319",
+      "0619"
+     ]
+    },
+    {
+     "g": "FR:IIIC",
+     "h": [
+      "0719",
+      "0720",
+      "0720"
+     ]
+    },
+    {
+     "g": "FR:IVC",
+     "h": [
+      "1118",
+      "1118",
+      "1218"
+     ]
+    },
+    {
+     "g": "FR:VI",
+     "h": [
+      "0919",
+      "0919",
+      "1019",
+      "1019",
+      "0920",
+      "1020",
+      "1020"
+     ]
+    },
+    {
+     "g": "VecchiaGuardia",
+     "h": [
+      "0921",
+      "0921",
+      "1021",
+      "1021",
+      "0918"
+     ]
+    },
+    {
+     "g": "GiovaneGuardia",
+     "h": [
+      "1022",
+      "1022",
+      "1122"
+     ]
+    },
+    {
+     "g": "CavGuardia",
+     "h": [
+      "0820",
+      "0820",
+      "0821"
+     ]
+    },
+    {
+     "g": "Durutte",
+     "h": [
+      "1317",
+      "1418"
+     ]
+    }
+   ],
+   "attacchi": [
+    {
+     "da": "FR:I",
+     "su": "1531"
+    }
+   ],
+   "perdite": [
+    {
+     "g": "AA:C",
+     "n": 1
+    }
+   ],
+   "capi": [
+    {
+     "c": "c215",
+     "h": "1531"
+    },
+    {
+     "c": "c202",
+     "h": "0812"
+    },
+    {
+     "c": "c205",
+     "h": "0815"
+    }
+   ]
+  },
+  {
+   "t": 17,
+   "testo": "Pioggia. L'esercito francese avanza lentissimo nel fango lungo la strada di Bruxelles. Grouchy è a Gembloux e manda pattuglie a nord: comincia a capire che i Prussiani sono andati verso Wavre.",
+   "capi": [
+    {
+     "c": "c215",
+     "h": "1124"
+    }
+   ]
+  },
+  {
+   "t": 18,
+   "testo": "Pioggia. Alle 18:30 l'avanguardia francese arriva davanti a Mont-Saint-Jean e prova le difese con l'artiglieria: risponde il fuoco di molte batterie. Wellington è lì con tutto l'esercito.",
+   "box": [
+    {
+     "h": "0918",
+     "titolo": "La Belle Alliance",
+     "testo": "La locanda sulla strada di Bruxelles dà il nome alla battaglia per i Prussiani. Napoleone vi passerà gran parte del 18 giugno."
+    }
+   ]
+  },
+  {
+   "t": 19,
+   "testo": "Sera del 17. I Prussiani sono tutti attorno a Wavre: Zieten e Pirch al centro, Thielmann a nord del paese. Nella notte Blücher promette a Wellington di venire alla battaglia con almeno due corpi: «Sarò lì».",
+   "ordini": [
+    {
+     "g": "PR:III",
+     "h": [
+      "4206",
+      "4306",
+      "4307",
+      "4308",
+      "3908",
+      "4008",
+      "3712",
+      "4505",
+      "4106",
+      "4205",
+      "4105",
+      "4405",
+      "4506",
+      "4207"
+     ]
+    }
+   ],
+   "capi": [
+    {
+     "c": "c215",
+     "h": "1022"
+    },
+    {
+     "c": "c210",
+     "h": "4206"
+    }
+   ]
+  },
+  {
+   "t": 20,
+   "testo": "Notte del 17. Il IV corpo di Bülow, che non ha combattuto a Ligny, arriva a Dion-le-Mont, a est di Wavre. Toccherà a lui aprire la marcia verso Waterloo.",
+   "ordini": [
+    {
+     "g": "PR:IV",
+     "c": "5011",
+     "r": 2
+    }
+   ]
+  },
+  {
+   "t": 22,
+   "testo": "Ore 3 del 18 giugno. Piove ancora. Napoleone visita gli avamposti: teme che gli Inglesi se ne vadano nella notte. All'alba li vede ancora sulla cresta e ne è contento: «Li abbiamo».",
+   "ordini": [
+    {
+     "g": "PR:IV",
+     "c": "4807",
+     "r": 2
+    }
+   ]
+  },
+  {
+   "t": 23,
+   "testo": "Alba del 18. Grouchy, a Gembloux, decide di marciare su Wavre per Sart-à-Walhain. Bülow parte da Wavre verso Chapelle-Saint-Lambert, ma un incendio nelle strade di Wavre e il fango rallentano tutto.",
+   "ordini": [
+    {
+     "g": "PR:IV",
+     "h": [
+      "2411",
+      "2412",
+      "2311",
+      "2312",
+      "2511",
+      "2512",
+      "2410",
+      "2310",
+      "2510",
+      "2413",
+      "2313",
+      "2513",
+      "2610",
+      "2611",
+      "2612",
+      "2409"
+     ]
+    },
+    {
+     "g": "FR:III",
+     "h": [
+      "5021",
+      "5022",
+      "4921",
+      "4922",
+      "5120",
+      "5121",
+      "5023",
+      "4923"
+     ]
+    },
+    {
+     "g": "FR:IV",
+     "h": [
+      "5025",
+      "5026",
+      "4925",
+      "4926",
+      "5125",
+      "5126",
+      "5024",
+      "5124"
+     ]
+    },
+    {
+     "g": "Pajol",
+     "h": [
+      "4823",
+      "4824",
+      "4723"
+     ]
+    },
+    {
+     "g": "FR:IIC",
+     "h": [
+      "4920",
+      "4919",
+      "5019"
+     ]
+    }
+   ],
+   "capi": [
+    {
+     "c": "c216",
+     "h": "5022"
+    }
+   ]
+  },
+  {
+   "t": 24,
+   "testo": "Ore 9. Napoleone aspetta che il terreno si asciughi per far muovere i cannoni e rimanda l'attacco. Ha 72.000 uomini contro i 68.000 di Wellington. Grouchy, a colazione a Walhain, sente il cannone verso ovest: Gérard lo supplica di marciare al suono del cannone, Grouchy rifiuta e prosegue su Wavre come da ordini.",
+   "box": [
+    {
+     "h": "0617",
+     "titolo": "Hougoumont",
+     "testo": "Castello e fattoria murata sulla destra alleata, tenuta dalle Guardie britanniche e da Nassauesi e Hannoveriani."
+    },
+    {
+     "h": "0916",
+     "titolo": "La Haye Sainte",
+     "testo": "Fattoria sulla strada di Bruxelles, davanti al centro alleato: la tiene il maggiore Baring con 400 fucilieri della Legione Tedesca del Re."
+    },
+    {
+     "h": "5021",
+     "titolo": "Grouchy",
+     "testo": "«Marciate al suono del cannone!», gli dice Gérard. Grouchy obbedisce agli ordini scritti: inseguire i Prussiani su Wavre."
+    }
+   ]
+  },
+  {
+   "t": 25,
+   "testo": "Ore 11:30. La battaglia comincia a Hougoumont: Jérôme, il fratello dell'Imperatore, attacca il bosco e poi la fattoria. Doveva essere un diversivo; diventerà una battaglia nella battaglia che inghiottirà quasi tutto il II corpo.",
+   "box": [
+    {
+     "h": "0617",
+     "titolo": "Le porte di Hougoumont",
+     "testo": "Un pugno di Francesi forza il portone nord; le Guardie di Macdonell lo richiudono a forza di spalle. Chi era entrato viene ucciso, tranne un tamburino."
+    }
+   ],
+   "ordini": [
+    {
+     "g": "FR:II",
+     "h": [
+      "0518",
+      "0518",
+      "0618",
+      "0618",
+      "0718",
+      "0718",
+      "0517",
+      "0619"
+     ]
+    },
+    {
+     "g": "PR:I",
+     "h": [
+      "1911",
+      "1912",
+      "1811",
+      "1812",
+      "2011",
+      "2012",
+      "1810",
+      "1910",
+      "2010",
+      "2111",
+      "1711",
+      "1710"
+     ]
+    }
+   ],
+   "attacchi": [
+    {
+     "da": "FR:II",
+     "su": "0617"
+    }
+   ],
+   "perdite": [
+    {
+     "g": "FR:II",
+     "n": 1
+    }
+   ],
+   "capi": [
+    {
+     "c": "c215",
+     "h": "0920"
+    },
+    {
+     "c": "c217",
+     "h": "0918"
+    }
+   ]
+  },
+  {
+   "t": 26,
+   "testo": "Mezzogiorno. Una grande batteria di 80 cannoni apre il fuoco sul centro sinistro alleato. Molte palle si perdono nel fango morbido o passano sopra le truppe nascoste dietro la cresta.",
+   "attacchi": [
+    {
+     "da": "FR:I",
+     "su": "1015"
+    },
+    {
+     "da": "FR:I",
+     "su": "1115"
+    },
+    {
+     "da": "FR:II",
+     "su": "0617"
+    }
+   ],
+   "ordini": [
+    {
+     "g": "PR:II",
+     "h": [
+      "2411",
+      "2412",
+      "2311",
+      "2312",
+      "2511",
+      "2512",
+      "2410",
+      "2310",
+      "2510",
+      "2413",
+      "2313",
+      "2513",
+      "2610"
+     ]
+    },
+    {
+     "g": "FR:III",
+     "h": [
+      "4309",
+      "4409",
+      "4209",
+      "4410",
+      "4310",
+      "4210",
+      "4509",
+      "4110"
+     ]
+    },
+    {
+     "g": "FR:IV",
+     "h": [
+      "4009",
+      "3909",
+      "4109",
+      "4010",
+      "3910",
+      "4110",
+      "3809",
+      "4210"
+     ]
+    },
+    {
+     "g": "Pajol",
+     "h": [
+      "3713",
+      "3813",
+      "3613"
+     ]
+    }
+   ]
+  },
+  {
+   "t": 27,
+   "testo": "Ore 13:30. Napoleone vede delle truppe verso Chapelle-Saint-Lambert: sono i Prussiani di Bülow. Manda Lobau e la cavalleria leggera a coprire il fianco destro e lancia l'attacco di d'Erlon: 16.000 uomini in quattro grandi colonne contro il centro sinistro di Wellington.",
+   "box": [
+    {
+     "h": "1115",
+     "titolo": "L'attacco di d'Erlon",
+     "testo": "Le colonne salgono la cresta; la brigata olandese di Bijlandt cede. Picton guida il contrattacco e cade colpito alla testa."
+    },
+    {
+     "h": "2411",
+     "titolo": "I Prussiani in vista",
+     "testo": "Da Chapelle-Saint-Lambert Bülow deve ancora scendere nella valle della Lasne e risalire: due ore di marcia nel fango."
+    }
+   ],
+   "ordini": [
+    {
+     "g": "FR:I",
+     "h": [
+      "1016",
+      "1016",
+      "1116",
+      "1116",
+      "1216",
+      "1216",
+      "0917",
+      "1018"
+     ]
+    },
+    {
+     "g": "FR:VI",
+     "h": [
+      "1219",
+      "1219",
+      "1119",
+      "1119",
+      "1220",
+      "1220",
+      "1120"
+     ]
+    },
+    {
+     "g": "PR:IV",
+     "h": [
+      "1616",
+      "1617",
+      "1516",
+      "1517",
+      "1615",
+      "1715",
+      "1716",
+      "1717",
+      "1618",
+      "1518",
+      "1515",
+      "1714",
+      "1614",
+      "1514",
+      "1719",
+      "1619"
+     ]
+    }
+   ],
+   "attacchi": [
+    {
+     "da": "FR:I",
+     "su": "1115"
+    },
+    {
+     "da": "FR:I",
+     "su": "1015"
+    },
+    {
+     "da": "FR:I",
+     "su": "0916"
+    }
+   ],
+   "perdite": [
+    {
+     "g": "AA:N2",
+     "n": 1
+    },
+    {
+     "c": "c198"
+    }
+   ],
+   "capi": [
+    {
+     "c": "c210",
+     "h": "2411"
+    }
+   ]
+  },
+  {
+   "t": 28,
+   "testo": "Ore 14. Uxbridge lancia le due brigate di cavalleria pesante, la Household di Somerset e la Union di Ponsonby: travolgono le colonne di d'Erlon e catturano due aquile e 3.000 prigionieri. Ma, trascinate dallo slancio, galoppano fino alla grande batteria e vengono massacrate dai lancieri francesi. Ponsonby muore.",
+   "box": [
+    {
+     "h": "1117",
+     "titolo": "Scotland Forever",
+     "testo": "Gli Scots Greys caricano insieme ai fanti scozzesi aggrappati alle staffe. Della brigata Union torna meno della metà."
+    }
+   ],
+   "ordini": [
+    {
+     "g": "FR:I",
+     "h": [
+      "1118",
+      "1118",
+      "1218",
+      "1218",
+      "1318",
+      "1318",
+      "1018",
+      "1019"
+     ]
+    },
+    {
+     "g": "Unione",
+     "h": [
+      "1117",
+      "1017"
+     ]
+    }
+   ],
+   "attacchi": [
+    {
+     "da": "Unione",
+     "su": "1118"
+    },
+    {
+     "da": "Unione",
+     "su": "1018"
+    }
+   ],
+   "perdite": [
+    {
+     "g": "FR:I",
+     "n": 3
+    },
+    {
+     "g": "u51"
+    }
+   ]
+  },
+  {
+   "t": 29,
+   "testo": "Ore 15. La cavalleria britannica superstite torna sulla cresta. Hougoumont brucia ma non cade. Napoleone ordina a Ney di prendere La Haye Sainte per preparare l'attacco decisivo.",
+   "ordini": [
+    {
+     "g": "Unione",
+     "h": [
+      "0814"
+     ]
+    },
+    {
+     "g": "PR:II",
+     "h": [
+      "2114",
+      "2113",
+      "2214",
+      "2213",
+      "2014",
+      "2015",
+      "2115",
+      "2215",
+      "1914",
+      "1915",
+      "2016",
+      "1916",
+      "2116"
+     ]
+    }
+   ],
+   "attacchi": [
+    {
+     "da": "FR:II",
+     "su": "0617"
+    },
+    {
+     "da": "FR:I",
+     "su": "0916"
+    }
+   ],
+   "perdite": [
+    {
+     "g": "FR:II",
+     "n": 1
+    }
+   ]
+  },
+  {
+   "t": 30,
+   "testo": "Ore 16. Ney scambia un movimento di feriti e prigionieri dietro la cresta per una ritirata e lancia la cavalleria: prima i corazzieri di Milhaud, poi Kellermann e la cavalleria della Guardia, 9.000 cavalieri in tutto, senza fanteria. Gli Alleati formano i quadrati. Intanto, alle 16:30, Bülow esce dal bosco di Paris sul fianco destro francese. Grouchy arriva davanti a Wavre.",
+   "box": [
+    {
+     "h": "0716",
+     "titolo": "Le cariche di Ney",
+     "testo": "Per due ore la cavalleria francese gira attorno ai quadrati senza riuscire a romperli; gli artiglieri alleati si rifugiano nei quadrati e tornano ai pezzi tra una carica e l'altra."
+    },
+    {
+     "h": "1616",
+     "titolo": "Arriva Bülow",
+     "testo": "30.000 Prussiani escono dal bosco di Paris. Lobau, con 10.000 uomini, deve fermarli."
+    },
+    {
+     "h": "4308",
+     "titolo": "Wavre",
+     "testo": "Grouchy attacca i ponti sulla Dyle. Davanti ha solo il III corpo di Thielmann, la retroguardia: gli altri tre corpi prussiani marciano verso Waterloo."
+    }
+   ],
+   "ordini": [
+    {
+     "g": "FR:IVC",
+     "h": [
+      "0716",
+      "0816",
+      "0716"
+     ]
+    },
+    {
+     "g": "FR:IIIC",
+     "h": [
+      "0717",
+      "0817",
+      "0717"
+     ]
+    },
+    {
+     "g": "CavGuardia",
+     "h": [
+      "0816",
+      "0817",
+      "0717"
+     ]
+    },
+    {
+     "g": "FR:III",
+     "h": [
+      "4309",
+      "4409",
+      "4209",
+      "4410",
+      "4310",
+      "4210",
+      "4509",
+      "4110"
+     ]
+    },
+    {
+     "g": "FR:IV",
+     "h": [
+      "4009",
+      "3909",
+      "4109",
+      "4010",
+      "3910",
+      "4110",
+      "3809",
+      "4210"
+     ]
+    },
+    {
+     "g": "Pajol",
+     "h": [
+      "3713",
+      "3813",
+      "3613"
+     ]
+    },
+    {
+     "g": "PR:IV",
+     "h": [
+      "1616",
+      "1617",
+      "1516",
+      "1517",
+      "1615",
+      "1715",
+      "1716",
+      "1717",
+      "1618",
+      "1518",
+      "1515",
+      "1714",
+      "1614",
+      "1514",
+      "1719",
+      "1619"
+     ]
+    }
+   ],
+   "attacchi": [
+    {
+     "da": "FR:IVC",
+     "su": "0715"
+    },
+    {
+     "da": "FR:IIIC",
+     "su": "0815"
+    },
+    {
+     "da": "FR:III",
+     "su": "4308"
+    }
+   ],
+   "perdite": [
+    {
+     "g": "FR:IVC",
+     "n": 1
+    },
+    {
+     "g": "AA:B",
+     "n": 1
+    }
+   ],
+   "capi": [
+    {
+     "c": "c210",
+     "h": "1616"
+    },
+    {
+     "c": "c216",
+     "h": "4409"
+    }
+   ]
+  },
+  {
+   "t": 31,
+   "testo": "Ore 17. Le cariche continuano. Sul fianco destro i Prussiani attaccano Plancenoit, alle spalle della linea francese: Lobau cede terreno passo per passo. Il II corpo di Pirch arriva dietro Bülow; Zieten, con il I corpo, è a Ohain.",
+   "ordini": [
+    {
+     "g": "FR:VI",
+     "h": [
+      "1220",
+      "1320",
+      "1219",
+      "1319",
+      "1120",
+      "1121",
+      "1221"
+     ]
+    },
+    {
+     "g": "PR:IV",
+     "h": [
+      "1419",
+      "1420",
+      "1421",
+      "1321",
+      "1322",
+      "1418",
+      "1519",
+      "1520",
+      "1521",
+      "1422",
+      "1517",
+      "1518",
+      "1617",
+      "1618",
+      "1619",
+      "1620"
+     ]
+    },
+    {
+     "g": "PR:II",
+     "h": [
+      "1715",
+      "1716",
+      "1717",
+      "1814",
+      "1815",
+      "1816",
+      "1714",
+      "1813",
+      "1913",
+      "1914",
+      "1915",
+      "1712",
+      "1713",
+      "1812",
+      "1912",
+      "1816"
+     ]
+    },
+    {
+     "g": "PR:I",
+     "h": [
+      "1414",
+      "1514",
+      "1413",
+      "1513",
+      "1612",
+      "1613",
+      "1512",
+      "1412",
+      "1611",
+      "1511",
+      "1712",
+      "1713"
+     ]
+    }
+   ],
+   "attacchi": [
+    {
+     "da": "PR:IV",
+     "su": "1320"
+    },
+    {
+     "da": "PR:IV",
+     "su": "1220"
+    },
+    {
+     "da": "FR:IVC",
+     "su": "0815"
+    },
+    {
+     "da": "FR:IV",
+     "su": "3908"
+    }
+   ],
+   "perdite": [
+    {
+     "g": "FR:VI",
+     "n": 1
+    },
+    {
+     "g": "PR:IV",
+     "n": 1
+    },
+    {
+     "g": "FR:IIIC",
+     "n": 1
+    }
+   ]
+  },
+  {
+   "t": 32,
+   "testo": "Ore 18:30. La Haye Sainte cade: i fucilieri di Baring hanno finito le munizioni. I Francesi portano cannoni a pochi passi dal centro alleato, che vacilla. Nello stesso momento i Prussiani prendono Plancenoit e i loro proiettili cadono sulla strada di Bruxelles, alle spalle di Napoleone. L'Imperatore manda la Giovane Guardia a riprendere il villaggio.",
+   "box": [
+    {
+     "h": "0916",
+     "titolo": "Cade La Haye Sainte",
+     "testo": "Dei 400 difensori ne escono 42. È il momento più pericoloso della giornata per Wellington."
+    },
+    {
+     "h": "1220",
+     "titolo": "Plancenoit",
+     "testo": "Il villaggio passa di mano tre volte. La Giovane Guardia lo riprende; poi due battaglioni della Vecchia Guardia ne cacciano i Prussiani alla baionetta."
+    }
+   ],
+   "ordini": [
+    {
+     "g": "FR:VI",
+     "h": [
+      "1120",
+      "1121",
+      "1021",
+      "1020",
+      "1119",
+      "1019",
+      "1122"
+     ]
+    },
+    {
+     "g": "PR:IV",
+     "h": [
+      "1220",
+      "1320",
+      "1321",
+      "1221",
+      "1419",
+      "1420",
+      "1421",
+      "1322",
+      "1418",
+      "1519",
+      "1520",
+      "1222",
+      "1422",
+      "1521",
+      "1323",
+      "1423"
+     ]
+    },
+    {
+     "g": "FR:I",
+     "h": [
+      "0916",
+      "1016",
+      "1017",
+      "1117",
+      "0917",
+      "1018",
+      "1118",
+      "1218"
+     ]
+    },
+    {
+     "g": "GiovaneGuardia",
+     "h": [
+      "1121",
+      "1021",
+      "1122"
+     ]
+    },
+    {
+     "g": "AA:N3",
+     "h": [
+      "0714",
+      "0814",
+      "0814"
+     ]
+    },
+    {
+     "g": "PR:I",
+     "h": [
+      "1514",
+      "1513",
+      "1414",
+      "1413",
+      "1612",
+      "1613",
+      "1512",
+      "1412",
+      "1611",
+      "1511",
+      "1712",
+      "1713"
+     ]
+    }
+   ],
+   "attacchi": [
+    {
+     "da": "FR:I",
+     "su": "0916"
+    },
+    {
+     "da": "PR:IV",
+     "su": "1220"
+    }
+   ],
+   "perdite": [
+    {
+     "g": "LaHayeSainte",
+     "prima": true
+    },
+    {
+     "g": "FR:VI",
+     "n": 1
+    },
+    {
+     "g": "AA:3",
+     "n": 1
+    }
+   ]
+  },
+  {
+   "t": 33,
+   "testo": "Ore 19:30. L'ultimo colpo: Napoleone manda contro il centro alleato i battaglioni della Media Guardia, facendo spargere la voce che i soldati in arrivo da est sono di Grouchy. Salgono la cresta fra Hougoumont e La Haye Sainte. Dietro la cresta li aspettano, sdraiate nel grano, le Guardie di Maitland: «In piedi, Guardie, e mirate!». A est arriva Zieten e si congiunge con la sinistra di Wellington a Papelotte.",
+   "box": [
+    {
+     "h": "0716",
+     "titolo": "La Guardia arretra",
+     "testo": "Colpita da tre lati, la Guardia si ferma e poi ripiega. Per la prima volta. Il grido corre per tutta la linea: «La Garde recule!»."
+    },
+    {
+     "h": "1315",
+     "titolo": "Arriva Zieten",
+     "testo": "Il I corpo prussiano sbocca a Smohain e Papelotte, proprio dove la linea francese piega verso Plancenoit."
+    }
+   ],
+   "ordini": [
+    {
+     "g": "VecchiaGuardia",
+     "h": [
+      "0716",
+      "0716",
+      "0816",
+      "0817",
+      "0918"
+     ]
+    },
+    {
+     "g": "GiovaneGuardia",
+     "h": [
+      "1220",
+      "1121",
+      "1221"
+     ]
+    },
+    {
+     "g": "PR:IV",
+     "h": [
+      "1320",
+      "1321",
+      "1419",
+      "1420",
+      "1421",
+      "1322",
+      "1418",
+      "1519",
+      "1520",
+      "1222",
+      "1422",
+      "1521",
+      "1323",
+      "1423",
+      "1318",
+      "1319"
+     ]
+    },
+    {
+     "g": "PR:I",
+     "h": [
+      "1316",
+      "1416",
+      "1415",
+      "1317",
+      "1414",
+      "1516",
+      "1515",
+      "1413",
+      "1514",
+      "1315",
+      "1513",
+      "1612"
+     ]
+    },
+    {
+     "g": "PR:II",
+     "h": [
+      "1518",
+      "1519",
+      "1617",
+      "1618",
+      "1520",
+      "1619",
+      "1620",
+      "1717",
+      "1718",
+      "1719",
+      "1621",
+      "1521",
+      "1522",
+      "1622",
+      "1720",
+      "1721"
+     ]
+    }
+   ],
+   "attacchi": [
+    {
+     "da": "VecchiaGuardia",
+     "su": "0615"
+    },
+    {
+     "da": "VecchiaGuardia",
+     "su": "0715"
+    },
+    {
+     "da": "GiovaneGuardia",
+     "su": "1220"
+    },
+    {
+     "da": "PR:I",
+     "su": "1317"
+    }
+   ],
+   "perdite": [
+    {
+     "g": "VecchiaGuardia",
+     "n": 2
+    },
+    {
+     "g": "FR:IVC",
+     "n": 1
+    },
+    {
+     "g": "AA:1",
+     "n": 1
+    }
+   ],
+   "capi": [
+    {
+     "c": "c215",
+     "h": "0918"
+    }
+   ]
+  },
+  {
+   "t": 34,
+   "testo": "Ore 20. Wellington si alza sulle staffe e agita il cappello: avanzata generale. Tutta la linea alleata scende dalla cresta mentre i Prussiani riprendono Plancenoit e travolgono il fianco francese. L'esercito di Napoleone si dissolve. Solo alcuni quadrati della Vecchia Guardia restano in piedi e coprono la fuga dell'Imperatore.",
+   "box": [
+    {
+     "h": "0918",
+     "titolo": "La rotta",
+     "testo": "Il grido «Sauve qui peut!» corre fra le colonne. In poche ore l'Armée du Nord perde 25.000 uomini fra morti e feriti, 8.000 prigionieri e quasi tutti i cannoni."
+    }
+   ],
+   "ordini": [
+    {
+     "g": "FR:I",
+     "h": [
+      "1123",
+      "1124",
+      "1023",
+      "1024",
+      "1224",
+      "0923"
+     ]
+    },
+    {
+     "g": "FR:II",
+     "h": [
+      "0822",
+      "0823",
+      "0922",
+      "0723",
+      "0923",
+      "0824"
+     ]
+    },
+    {
+     "g": "FR:VI",
+     "h": [
+      "1223",
+      "1323",
+      "1224",
+      "1324"
+     ]
+    },
+    {
+     "g": "VecchiaGuardia",
+     "h": [
+      "0920",
+      "0921",
+      "1022"
+     ]
+    },
+    {
+     "g": "GiovaneGuardia",
+     "h": [
+      "1122",
+      "1123"
+     ]
+    },
+    {
+     "g": "FR:IIIC",
+     "h": [
+      "0823",
+      "0824"
+     ]
+    },
+    {
+     "g": "FR:IVC",
+     "h": [
+      "1025",
+      "1125"
+     ]
+    },
+    {
+     "g": "CavGuardia",
+     "h": [
+      "0922",
+      "1023"
+     ]
+    },
+    {
+     "g": "Durutte",
+     "h": [
+      "1324",
+      "1325"
+     ]
+    },
+    {
+     "g": "AA:1",
+     "h": [
+      "0717",
+      "0817"
+     ]
+    },
+    {
+     "g": "AA:2",
+     "h": [
+      "0618",
+      "0718",
+      "0718",
+      "0518"
+     ]
+    },
+    {
+     "g": "AA:3",
+     "h": [
+      "0916",
+      "0917"
+     ]
+    },
+    {
+     "g": "AA:5",
+     "h": [
+      "1017",
+      "1117",
+      "1118"
+     ]
+    },
+    {
+     "g": "AA:C",
+     "h": [
+      "0819",
+      "0919",
+      "1019",
+      "1119",
+      "0719"
+     ]
+    },
+    {
+     "g": "AA:B",
+     "h": [
+      "0717",
+      "0818"
+     ]
+    },
+    {
+     "g": "PR:IV",
+     "h": [
+      "1220",
+      "1320",
+      "1121",
+      "1221",
+      "1021",
+      "1122",
+      "1222",
+      "1321",
+      "1322",
+      "1120",
+      "1219",
+      "1319",
+      "1022",
+      "1123",
+      "1223",
+      "1323"
+     ]
+    },
+    {
+     "g": "PR:I",
+     "h": [
+      "1217",
+      "1218",
+      "1317",
+      "1318",
+      "1219",
+      "1117",
+      "1118",
+      "1418",
+      "1319",
+      "1419",
+      "1216",
+      "1316"
+     ]
+    }
+   ],
+   "attacchi": [
+    {
+     "da": "PR:IV",
+     "su": "1220"
+    },
+    {
+     "da": "AA:C",
+     "su": "0918"
+    }
+   ],
+   "perdite": [
+    {
+     "g": "FR:I",
+     "n": 2
+    },
+    {
+     "g": "FR:II",
+     "n": 3
+    },
+    {
+     "g": "FR:VI",
+     "n": 2
+    },
+    {
+     "g": "VecchiaGuardia",
+     "n": 1
+    },
+    {
+     "g": "FR:IIIC",
+     "n": 1
+    },
+    {
+     "g": "CavGuardia",
+     "n": 1
+    },
+    {
+     "g": "GiovaneGuardia",
+     "n": 1
+    },
+    {
+     "g": "Durutte",
+     "n": 1
+    }
+   ],
+   "capi": [
+    {
+     "c": "c215",
+     "h": "1124"
+    },
+    {
+     "c": "c202",
+     "h": "0918"
+    }
+   ]
+  },
+  {
+   "t": 35,
+   "testo": "Notte del 18. Verso le 21:15 Wellington e Blücher si incontrano davanti alla locanda della Belle Alliance. La cavalleria prussiana di Gneisenau insegue i fuggiaschi fino a Genappe e oltre, al chiaro di luna. A Wavre Grouchy combatte ancora e il 19 vincerà Thielmann, ma ormai non conta più. Il 22 giugno Napoleone abdica per la seconda volta.",
+   "box": [
+    {
+     "h": "0918",
+     "titolo": "La Belle Alliance",
+     "testo": "«Quelle affaire!», avrebbe detto Blücher abbracciando Wellington. Il duca propose di chiamare la battaglia Waterloo, dal paese dove aveva il quartier generale."
+    },
+    {
+     "h": "3908",
+     "titolo": "Wavre, 19 giugno",
+     "testo": "Grouchy passa la Dyle a Limale e respinge Thielmann. Poi sa di Waterloo e riporta in Francia i suoi 33.000 uomini quasi intatti."
+    }
+   ],
+   "ordini": [
+    {
+     "g": "FR:I",
+     "h": [
+      "1430",
+      "1431",
+      "1330",
+      "1331"
+     ]
+    },
+    {
+     "g": "FR:II",
+     "h": [
+      "1329",
+      "1429",
+      "1328"
+     ]
+    },
+    {
+     "g": "FR:VI",
+     "h": [
+      "1530",
+      "1531"
+     ]
+    },
+    {
+     "g": "VecchiaGuardia",
+     "h": [
+      "1227",
+      "1228"
+     ]
+    },
+    {
+     "g": "GiovaneGuardia",
+     "h": [
+      "1329"
+     ]
+    },
+    {
+     "g": "FR:IIIC",
+     "h": [
+      "1228"
+     ]
+    },
+    {
+     "g": "FR:IVC",
+     "h": [
+      "1229",
+      "1230"
+     ]
+    },
+    {
+     "g": "CavGuardia",
+     "h": [
+      "1328"
+     ]
+    },
+    {
+     "g": "Durutte",
+     "h": [
+      "1430"
+     ]
+    },
+    {
+     "g": "PR:IV",
+     "c": "1124",
+     "r": 3
+    },
+    {
+     "g": "Pajol",
+     "h": [
+      "3712",
+      "3711",
+      "3812"
+     ]
+    }
+   ],
+   "attacchi": [
+    {
+     "da": "Pajol",
+     "su": "3712"
+    },
+    {
+     "da": "FR:III",
+     "su": "4308"
+    }
+   ],
+   "perdite": [
+    {
+     "g": "FR:I",
+     "n": 1
+    },
+    {
+     "g": "FR:VI",
+     "n": 2
+    },
+    {
+     "g": "FR:II",
+     "n": 1
+    },
+    {
+     "g": "PR:III",
+     "n": 1
+    },
+    {
+     "g": "FR:IV",
+     "n": 1
+    }
+   ],
+   "capi": [
+    {
+     "c": "c215",
+     "h": "1531"
+    },
+    {
+     "c": "c210",
+     "h": "0918"
+    }
+   ]
+  }
+ ]
+}
