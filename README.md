@@ -185,6 +185,9 @@ Il secondo gioco, dal modulo TTS «SPI's Napoleon At War» (mappe, pedine, regol
   meglio abbassare il rapporto), stima il raddoppio del difensore attaccato solo in salita o attraverso un
   ruscello (e sceglie esagoni d'attacco che lo evitano), a Jena-Auerstadt ha due atteggiamenti (Napoleone attacca
   a Jena, Davout tiene le alture ad Auerstadt), a Lipsia i Francesi restano aggressivi anche il terzo giorno.
+  Chi va all'attacco non si ferma accanto ad altri nemici più forti di lui (dovrebbe attaccarli tutti), chi
+  difende evita i posti a contatto con più nemici; a Marengo gli Austriaci attaccano per tutta la partita e
+  presidiano Marengo e Pietrabuona.
 - **Differenze da Last Battles**: stessa tabella dei combattimenti e stesse zone di controllo; ma niente
   impilamento, niente forza ridotta, capi, comando e rifornimento, niente fattorie; il bosco non raddoppia e non
   dimezza la cavalleria; i pendii non bloccano il tiro; demoralizzazione ed esclusive diverse per ogni gioco

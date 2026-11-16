@@ -29,6 +29,7 @@ var p_corpo := 3.0        # comando: penalità per ogni esagono oltre il raggio 
 var p_raggio_corpo := 4   # (l'ufficiale si sposta dopo le unità, al centro del corpo)
 var p_meta := 1.5         # campagna francese: attrazione verso la meta del proprio corpo
 var p_aggiro := 1.0       # chi va all'attacco preferisce gli esagoni che tagliano la ritirata al bersaglio
+var p_altri := 2.0        # chi va all'attacco non si ferma accanto ad altri nemici più forti di così (in rapporto)
 var piano: Array = []
 var chiave := ""
 var _fatto := ""
@@ -496,6 +497,7 @@ func _pianifica_movimento(lato: int) -> Array:
 			if lato == Motore.AL and p_villaggi > 0.0:
 				# ogni villaggio perso abbassa di 3 la soglia di demoralizzazione prussiana
 				chiave_hex = obiettivi(lato)
+	chiave_hex.append_array(_esagoni_chiave(lato))
 	for hk in chiave_hex:
 		# posti da coprire: a Quatre Bras il paese si riempie (la difesa raddoppia), altrove basta un'unità
 		var posti := 1
@@ -736,7 +738,7 @@ func _pianifica_attacchi(lato: int, mobili: Dictionary, nem: Array) -> Array:
 			for v in Mappa.vicini(h):
 				if v != t and m.lato_hex(v) == 1 - lato:
 					altri += _difesa_hex(v, 1 - lato)
-			if altri > m.forza(id) * 2.0 and Mappa.distanza(h, t) == 1:
+			if altri > m.forza(id) * p_altri and Mappa.distanza(h, t) == 1:
 				continue
 			presi[id] = true
 			posti[h] = posti.get(h, 0) + 1
@@ -771,6 +773,14 @@ func _pianifica_attacchi(lato: int, mobili: Dictionary, nem: Array) -> Array:
 				_occ_piano[mv["h"]] = _occ_piano.get(mv["h"], 0) + 1
 			risultato.append(mosse)
 	return risultato
+
+## Esagoni da presidiare sempre (oltre a quelli degli scenari di Last Battles)
+func _esagoni_chiave(_lato: int) -> Array:
+	return []
+
+## Valore aggiuntivo di un posto (per le varianti dell'IA)
+func _extra_posto(_id: String, _h: String, _lato: int, _in_z: bool) -> float:
+	return 0.0
 
 ## Moltiplicatore della difesa di t se attaccato da h (Napoleon at War: ruscelli, ponti, pendi in salita)
 func _molt_attacco(_t: String, _h: String) -> float:
@@ -876,6 +886,7 @@ func _miglior_posto(id: String, lato: int, info: Dictionary, nem: Array) -> Stri
 				dobj2 = mini(dobj2, Mappa.distanza(h, o))
 			v -= dobj2 * (0.6 if aggr and meta == "" else 0.0)
 		v += _valore_terreno(h, tp) * (0.6 if aggr else 1.2)
+		v += _extra_posto(id, h, lato, in_z)
 		if not aggr and dn <= 4:
 			# contropendenza: una cresta fra noi e il nemico ferma il tiro dell'artiglieria (Wellington)
 			for x in Mappa.vicini(h):

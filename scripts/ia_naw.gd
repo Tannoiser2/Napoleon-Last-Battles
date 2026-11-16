@@ -3,7 +3,16 @@
 class_name IANaw
 extends IA
 
+var p_aggancio := 1.0   # penalità per fermarsi a contatto con più nemici
+var p_presidi := 1.0    # Marengo: presidio degli obiettivi
+var p_mar_au := 15.0   # Marengo: fino a quale turno gli Austriaci attaccano (sempre: devono allontanare i Francesi da Marengo)
 var p_naz3 := 1.0    # Lipsia: i Francesi attaccano anche il terzo giorno (difendendosi fermi vengono accerchiati)
+
+func _init(motore: Motore) -> void:
+	super._init(motore)
+	# una sola unità per esagono e attacco obbligatorio contro tutti i nemici a contatto: chi va
+	# all'attacco non si ferma accanto ad altri nemici più forti di lui
+	p_altri = 1.0
 
 func _n() -> MotoreNaw:
 	return m as MotoreNaw
@@ -54,6 +63,38 @@ func _molt_attacco(t: String, h: String) -> float:
 		return 2.0
 	return 1.0
 
+## Marengo: dopo l'attacco gli Austriaci presidiano Marengo e Pietrabuona (la loro condizione di vittoria);
+## i Francesi tengono Marengo
+func _esagoni_chiave(lato: int) -> Array:
+	if _n().gioco != "marengo" or p_presidi <= 0.0:
+		return []
+	var sc: Dictionary = m.scen
+	if lato == Motore.AL:
+		var out := []
+		for h in [sc["marengo"], sc["pietrabuona"]]:
+			if m.lato_hex(h) == Motore.AL or (int(m.s["turno"]) >= 6 and not m.nemico_in(h, Motore.AL)):
+				out.append(h)
+		return out
+	return [sc["marengo"]] if not m.nemico_in(sc["marengo"], Motore.FR) else []
+
+## Una sola unità per esagono e niente uscita dalle zone di controllo: chi si ferma accanto a più nemici
+## dovrà attaccarli tutti insieme al turno dopo (o subirne gli attacchi uno dopo l'altro). In difesa si
+## preferiscono posti a contatto con un solo nemico, e mai accanto a tre o più
+func _extra_posto(_id: String, h: String, lato: int, in_z: bool) -> float:
+	if not in_z or p_aggancio <= 0.0:
+		return 0.0
+	var n := 0
+	var sp := 0.0
+	for v in Mappa.vicini(h):
+		if m.lato_hex(v) == 1 - lato and not m.blocca_zoc(v, h):
+			n += 1
+			sp += _difesa_hex(v, 1 - lato)
+	if n <= 1:
+		return 0.0
+	var mio := float(m.forza(_id))
+	var pen := float(n - 1) * 2.5 + maxf(0.0, sp - 2.0 * mio) * 0.4
+	return -pen * p_aggancio * (0.6 if aggressivo(lato) else 1.0)
+
 func _capienza(_h: String) -> int:
 	return 1
 
@@ -67,7 +108,7 @@ func aggressivo(lato: int, _es := "") -> bool:
 	match _n().gioco:
 		"marengo":
 			# gli Austriaci attaccano all'inizio; i Francesi tengono e poi contrattaccano
-			return t < 9 if lato == Motore.AL else t >= 8
+			return t < int(p_mar_au) if lato == Motore.AL else t >= 8
 		"wagram":
 			return lato == Motore.FR
 		"nazioni":
