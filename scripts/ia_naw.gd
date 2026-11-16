@@ -3,6 +3,8 @@
 class_name IANaw
 extends IA
 
+var p_naz3 := 1.0    # Lipsia: i Francesi attaccano anche il terzo giorno (difendendosi fermi vengono accerchiati)
+
 func _n() -> MotoreNaw:
 	return m as MotoreNaw
 
@@ -13,6 +15,44 @@ func decidi(rq: Dictionary) -> Dictionary:
 		if ob["amici"].size() >= 2 or int(m.s["turno"]) >= 10:
 			return {"a": "contrattacco"}
 	return super.decidi(rq)
+
+## Nello scambio si perdono unità intere: la combinazione più piccola che arriva alla forza stampata dei
+## difensori (una divisione da 11 che attacca una cavalleria da 2 la perde tutta)
+func costo_scambio(va: Dictionary, att_sp: float, dif_sp: float) -> float:
+	var sp := 0
+	for id in va["difensori"]:
+		sp += m.forza(id)
+	var tot := 0.0
+	for id in m._scegli_scambio(va["adiac"], sp):
+		tot += float(m.forza(id))
+	return tot if not va["adiac"].is_empty() else 0.0
+
+# ---------- contesto: in Jena-Auerstadt le due battaglie hanno atteggiamenti diversi
+var _campo_ctx := ""
+
+func _miglior_posto(id: String, lato: int, info: Dictionary, nem: Array) -> String:
+	var h0: String = info["da"]
+	if h0 == "" and not info["rg"].is_empty():
+		h0 = info["rg"].keys()[0]
+	_campo_ctx = _n().campo(h0)
+	var r := super._miglior_posto(id, lato, info, nem)
+	_campo_ctx = ""
+	return r
+
+func saldo_atteso(va: Dictionary, lato: int) -> float:
+	_campo_ctx = _n().campo(va["dif_hex"][0])
+	var r := super.saldo_atteso(va, lato)
+	_campo_ctx = ""
+	return r
+
+func _molt_attacco(t: String, h: String) -> float:
+	if not Mappa.adiacenti(t, h) or Mappa.terreno(t) in ["citta", "accidentato", "palude"]:
+		return 1.0
+	if Mappa.ruscello(h, t) or Mappa.ponte(h, t):
+		return 2.0
+	if Mappa.pendio(h, t) and Mappa.in_basso(h, t) == h:
+		return 2.0
+	return 1.0
 
 func _capienza(_h: String) -> int:
 	return 1
@@ -32,9 +72,13 @@ func aggressivo(lato: int, _es := "") -> bool:
 			return lato == Motore.FR
 		"nazioni":
 			# i Francesi devono battere gli Alleati prima che arrivino i rinforzi; poi tocca agli Alleati
-			return lato == Motore.FR if _n().turno_gioco() <= 11 else lato == Motore.AL
+			return lato == Motore.FR if (_n().turno_gioco() <= 11 or p_naz3 > 0.0) else lato == Motore.AL
 		"jena":
-			return lato == Motore.FR or (t >= 5 and str(m.s["naw"]["varianti"].get("opzione", "A")) == "A")
+			# Jena: Napoleone attacca Hohenlohe; Auerstadt: Davout tiene finché non arriva Morand (turno 7),
+			# Brunswick attacca subito per aprirsi la strada (opzione A)
+			if _campo_ctx == "A":
+				return lato == Motore.AL
+			return lato == Motore.FR
 	return lato == Motore.FR
 
 func resistere(lato: int, _es := "") -> bool:
@@ -52,7 +96,9 @@ func obiettivi(lato: int) -> Array:
 		"nazioni":
 			return ["1617", "1618", "1717", "1916", "2115", "2214", "1313"] if lato == Motore.FR else ["1617", "1618", "1717", "1916", "2115"]
 		"jena":
-			return ["0510", "0709", "1110", "1315", "1524", "1428"]
+			if _campo_ctx == "A":
+				return ["1524", "1428", "0926", "1027"]
+			return ["0510", "0709", "1110", "1315", "0808", "1408"]
 	return []
 
 func _difesa_hex(h: String, lato_dif: int) -> float:

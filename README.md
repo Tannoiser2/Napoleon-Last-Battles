@@ -181,6 +181,10 @@ Il secondo gioco, dal modulo TTS «SPI's Napoleon At War» (mappe, pedine, regol
   due campi con demoralizzazione separata e spostamento di colonna, opzioni A/B, Luigi Ferdinando, Bernadotte,
   binario di transito, uscite dopo la demoralizzazione, punti vittoria).
 - **IA** (`scripts/ia_naw.gd`): quella di Last Battles con il terreno, l'impilamento e gli obiettivi di ogni gioco.
+  Nello scambio conta le unità intere che perderebbe (niente divisioni da 11 sacrificate per una cavalleria da 2:
+  meglio abbassare il rapporto), stima il raddoppio del difensore attaccato solo in salita o attraverso un
+  ruscello (e sceglie esagoni d'attacco che lo evitano), a Jena-Auerstadt ha due atteggiamenti (Napoleone attacca
+  a Jena, Davout tiene le alture ad Auerstadt), a Lipsia i Francesi restano aggressivi anche il terzo giorno.
 - **Differenze da Last Battles**: stessa tabella dei combattimenti e stesse zone di controllo; ma niente
   impilamento, niente forza ridotta, capi, comando e rifornimento, niente fattorie; il bosco non raddoppia e non
   dimezza la cavalleria; i pendii non bloccano il tiro; demoralizzazione ed esclusive diverse per ogni gioco

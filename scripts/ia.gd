@@ -708,11 +708,22 @@ func _pianifica_attacchi(lato: int, mobili: Dictionary, nem: Array) -> Array:
 		cand.sort_custom(func(a, b):
 			if a[0] != b[0]:
 				return a[0] < b[0]
+			if _molt_attacco(t, a[2]) != _molt_attacco(t, b[2]):
+				return _molt_attacco(t, a[2]) < _molt_attacco(t, b[2])
 			if p_aggiro > 0.0 and chiude[a[2]] != chiude[b[2]]:
 				return chiude[a[2]] > chiude[b[2]]
 			return m.forza(a[1]) > m.forza(b[1]))
 		var presi := {}
 		var tipi := {}
+		# raddoppio del difensore se tutti gli adiacenti attaccano da ruscelli, ponti o dal basso
+		var n_adi := 0
+		var n_dop := 0
+		for v in Mappa.vicini(t):
+			for id in m.unita_in(v, lato):
+				if not mobili.has(id):
+					n_adi += 1
+					if _molt_attacco(t, v) > 1.0:
+						n_dop += 1
 		for c in cand:
 			var id: String = c[1]
 			var h: String = c[2]
@@ -732,9 +743,13 @@ func _pianifica_attacchi(lato: int, mobili: Dictionary, nem: Array) -> Array:
 			forza += m.forza_att(id, t)
 			tipi[m.tipo(id).substr(0, 1)] = true
 			mosse.append({"a": "entra" if mobili[id]["arr"] else "muovi", "u": id, "h": h})
-			if Dati.colonna(forza, dif) >= soglia_min + 1:
+			if Mappa.distanza(h, t) == 1:
+				n_adi += 1
+				if _molt_attacco(t, h) > 1.0:
+					n_dop += 1
+			if Dati.colonna(forza, dif * (2.0 if n_adi > 0 and n_dop == n_adi else 1.0)) >= soglia_min + 1:
 				break
-		var col := Dati.colonna(forza, dif)
+		var col := Dati.colonna(forza, dif * (2.0 if n_adi > 0 and n_dop == n_adi else 1.0))
 		if m.s["opzioni"].get("armi_combinate", true) and tipi.has("I") and tipi.has("C") and tipi.has("A"):
 			col += 1
 		if col >= soglia_min and not mosse.is_empty():
@@ -756,6 +771,10 @@ func _pianifica_attacchi(lato: int, mobili: Dictionary, nem: Array) -> Array:
 				_occ_piano[mv["h"]] = _occ_piano.get(mv["h"], 0) + 1
 			risultato.append(mosse)
 	return risultato
+
+## Moltiplicatore della difesa di t se attaccato da h (Napoleon at War: ruscelli, ponti, pendi in salita)
+func _molt_attacco(_t: String, _h: String) -> float:
+	return 1.0
 
 func _miglior_posto(id: String, lato: int, info: Dictionary, nem: Array) -> String:
 	var rg: Dictionary = info["rg"]
@@ -782,7 +801,7 @@ func _miglior_posto(id: String, lato: int, info: Dictionary, nem: Array) -> Stri
 			var dif := 0.0
 			for x in Mappa.vicini(h):
 				if m.lato_hex(x) == 1 - lato:
-					dif += _difesa_hex(x, 1 - lato)
+					dif += _difesa_hex(x, 1 - lato) * _molt_attacco(x, h)
 			var att := float(m.forza(id))
 			for x in m.unita_in(h, lato):
 				att += m.forza(x)
@@ -1363,10 +1382,14 @@ func saldo_atteso(va: Dictionary, lato: int) -> float:
 		match Dati.TRC[r][clampi(col, 0, 9)]:
 			"DE": v += dif_sp + liberati
 			"DR": v += dif_chiusi + 0.15 * dif_sp + liberati
-			"EX": v += dif_sp - peso * minf(att_sp, dif_sp) + liberati
+			"EX": v += dif_sp - peso * costo_scambio(va, att_sp, dif_sp) + liberati
 			"AR": v -= peso * (att_chiusi + (-0.3 if res else 0.15) * (att_sp - att_chiusi))
 			"AE": v -= peso * att_sp
 	return v / 6.0
+
+## Punti forza che l'attaccante perde in uno scambio (stima di Last Battles: quanto il difensore)
+func costo_scambio(_va: Dictionary, att_sp: float, dif_sp: float) -> float:
+	return minf(att_sp, dif_sp)
 
 ## Assegnazione classica degli attacchi obbligatori (bersaglio con meno pretendenti, poi miglioramento
 ## sul valore atteso per colonna): a Wavre produce più sganciamenti utili all'uscita dei Prussiani
