@@ -5,6 +5,9 @@ esportazione web: le quattro battaglie — **Ligny**, **Quatre Bras**, **Wavre**
 **campagna** che le unisce su un'unica mappa. Mappa 3D con le mappe e le pedine originali del modulo di Tabletop
 Simulator, IA per giocare da soli, partita online con un amico e salvataggi su Firebase.
 
+All'avvio si sceglie il gioco: **Napoleon's Last Battles** oppure **Napoleon at War** (il quadrigioco SPI del 1975
+con Marengo, Jena-Auerstadt, Wagram e la battaglia delle Nazioni, che usa lo stesso sistema).
+
 Si gioca qui: https://tannoiser2.github.io/Napoleon-Last-Battles/ (e nella ludoteca: https://tannoiser2.github.io).
 
 ## Cosa c'è
@@ -156,10 +159,39 @@ mappa di La Belle Alliance erano state lette come paesi (82 esagoni, tolti) e 33
 Fleurus, Tilly, Mellet, Wavre...) erano terreno aperto. La mappa Reborn disegna case anche dove l'originale
 aveva solo le pedine stampate (a sud di La Belle Alliance): conta il terreno dell'originale.
 
+## Napoleon at War
+
+Il secondo gioco, dal modulo TTS «SPI's Napoleon At War» (mappe, pedine, regole standard ed esclusive).
+
+- **Mappe**: le quattro scansioni orientate col nord in alto; la griglia è adattata leggendo con l'OCR i numeri
+  stampati negli esagoni (`tools/naw/griglia.py`, `centri.py`, con una correzione locale dove la scansione è
+  deformata). Il terreno è letto dai colori (`terreno.py`): paesi, boschi, terreno accidentato, laghi; fiumi
+  (bordati di nero) e ruscelli, strade, pendii con il lato basso (il tratteggio). Ponti, palude di Lipsia e le
+  poche correzioni a mano sono in `costruisci.py`. Le immagini di controllo si rigenerano con gli stessi script.
+- **Pedine**: ridisegnate nello stile del modulo (colore dell'esercito, sagoma, sigla, forza-movimento) da
+  `tools/naw/dati.py`, che contiene anche gli ordini di battaglia, gli schieramenti e i rinforzi delle regole
+  esclusive (OCR controllato a mano); `scenari.py` produce `assets/dati/naw.json`.
+- **Motore** (`scripts/motore_naw.gd`, estende quello di Last Battles): una unità per esagono, pendii, terreno
+  accidentato, palude solo per strada, sentieri, linea di tiro bloccata solo da boschi e paesi, notte senza
+  combattimento e senza ingresso nelle zone nemiche; Marengo (sorpresa del primo turno, contrattacco a forza
+  doppia dal turno 9, vittoria su perdite e obiettivi), Wagram (ruscelli vietati a cavalleria e artiglieria,
+  artiglierie di Lobau, demoralizzazione senza avanzate, arciduca Giovanni col dado, punti vittoria con i paesi,
+  le alture della Russbach e le uscite a ovest), la battaglia delle Nazioni (tre scenari, livelli che crescono
+  coi giorni, ritirata notturna, linea di comunicazione fino a 2131), Jena-Auerstadt (notte senza boschi, nebbia,
+  due campi con demoralizzazione separata e spostamento di colonna, opzioni A/B, Luigi Ferdinando, Bernadotte,
+  binario di transito, uscite dopo la demoralizzazione, punti vittoria).
+- **IA** (`scripts/ia_naw.gd`): quella di Last Battles con il terreno, l'impilamento e gli obiettivi di ogni gioco.
+- **Differenze da Last Battles**: stessa tabella dei combattimenti e stesse zone di controllo; ma niente
+  impilamento, niente forza ridotta, capi, comando e rifornimento, niente fattorie; il bosco non raddoppia e non
+  dimezza la cavalleria; i pendii non bloccano il tiro; demoralizzazione ed esclusive diverse per ogni gioco
+  (sono riassunte nelle «Regole in breve» del gioco).
+
 ## Prove
 
 ```
 tests/corri.sh sim.gd bellealliance 4          # partite automatiche IA contro IA (anche ligny, quatrebras, wavre, campagna)
+godot --headless --path . -s res://tests/sim.gd -- naw_jena 3 var:opzione=B   # Napoleon at War (naw_marengo, naw_wagram, naw_nazioni1/3, naw_nazioni)
+xvfb-run godot --path . -s res://tests/foto.gd -- naw_menu wagram             # menu di Napoleon at War
 godot --headless --path . -s res://tests/sim.gd -- ligny 10 0 --fr_vecchia   # IA attuale contro la Francia della versione 1.0
 xvfb-run godot --path . -s res://tests/foto.gd -- combattimento bellealliance   # screenshot
 GODOT=godot tests/prova_online.sh              # due copie del gioco online su un finto Firebase

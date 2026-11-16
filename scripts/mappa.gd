@@ -15,10 +15,22 @@ static var quote := {}         # mappa ridisegnata: c cresta, e paese, f fattori
 static var decorativi := []    # esagoni disegnati nelle mappe nuove ma fuori dal gioco
 static var tasselli_nuova := []   # [{file, zona [x0,y0,x1,y1], tex [x0,y0,x1,y1]}] in pixel della mappa
 
-static func carica() -> void:
-	if not esagoni.is_empty():
+static var file_attuale := ""
+static var cartella := "res://assets/mappa/"   # dove stanno i tasselli dell'immagine della mappa
+
+## Carica una mappa (quella della campagna di Last Battles, o una delle quattro di Napoleon at War)
+static func carica(file := "res://assets/mappa/mappa.json") -> void:
+	if file == file_attuale and not esagoni.is_empty():
 		return
-	var f := FileAccess.open("res://assets/mappa/mappa.json", FileAccess.READ)
+	file_attuale = file
+	cartella = file.get_base_dir() + "/"
+	esagoni = {}
+	lati = {}
+	_vic = {}
+	quote = {}
+	decorativi = []
+	tasselli_nuova = []
+	var f := FileAccess.open(file, FileAccess.READ)
 	var d: Dictionary = JSON.parse_string(f.get_as_text())
 	esagoni = d["esagoni"]
 	lati = d["lati"]
@@ -110,6 +122,18 @@ static func acqua(a: String, b: String) -> bool:
 
 static func cresta(a: String, b: String) -> bool:
 	return lato(a, b).contains("c")
+
+## Napoleon at War: lato di pendio; il codice dice quale dei due esagoni sta in basso (quello col tratteggio)
+static func pendio(a: String, b: String) -> bool:
+	return lato(a, b).contains("c")
+
+static func in_basso(a: String, b: String) -> String:
+	var l := lato(a, b)
+	if not l.contains("c"):
+		return ""
+	var primo := a if a < b else b
+	var secondo := b if a < b else a
+	return primo if l.contains("ca") else secondo
 
 static func strada(a: String, b: String) -> bool:
 	return lato(a, b).contains("r")

@@ -29,11 +29,14 @@ const NAZ := {
 	"BRU": {"nome": "Brunswick", "col": Color(0.62, 0.62, 0.62)},
 	"NAS": {"nome": "Nassau", "col": Color(0.05, 0.4, 0.28)},
 	"NL": {"nome": "Paesi Bassi", "col": Color(0.05, 0.38, 0.05)},
+	"AU": {"nome": "Austria", "col": Color(0.92, 0.9, 0.47)},
+	"RU": {"nome": "Russia", "col": Color(0.93, 0.86, 0.05)},
+	"SV": {"nome": "Svezia", "col": Color(0.78, 0.65, 0.25)},
 }
 const TIPI := {"I": "fanteria", "C": "cavalleria", "A": "artiglieria", "HA": "artiglieria a cavallo"}
 const NOMI_TERRENO := {
 	"aperto": "terreno aperto", "bosco": "bosco", "palude": "palude", "citta": "paese",
-	"castello": "fattoria fortificata", "lago": "lago",
+	"castello": "fattoria fortificata", "lago": "lago", "accidentato": "terreno accidentato",
 }
 ## Regole facoltative (15.x) e varianti (16.x) della 4ª edizione: chiave, titolo, spiegazione, dove valgono
 ## ("tutti", "campagna" = solo dove ci sono i capi, "guardia" = dove c'è la Guardia)

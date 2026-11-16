@@ -6,12 +6,20 @@ func _init() -> void:
 	var args := OS.get_cmdline_user_args()
 	var sc: String = args[0] if args.size() > 0 else "bellealliance"
 	var n := int(args[1]) if args.size() > 1 else 2
-	var vinte := {-1: 0, 0: 0, 1: 0}
+	var vinte := {-1: 0, 0: 0, 1: 0, 2: 0}
 	var off := int(args[2]) if args.size() > 2 and str(args[2]).is_valid_int() else 0
 	for p in range(off, off + n):
 		var t0 := Time.get_ticks_msec()
-		var mo := Motore.new()
+		var naw := Motore.sistema_di(sc) == "naw"
+		var mo: Motore = MotoreNaw.new() if naw else Motore.new()
 		var cfg := {"scen": sc, "seed": p * 7919 + 3}
+		for a in args:
+			if str(a).begins_with("var:"):
+				# var:opzione=B var:louis=1 var:bernadotte=1
+				var kv := str(a).substr(4).split("=")
+				cfg["varianti"] = cfg.get("varianti", {})
+				cfg["varianti"][kv[0]] = kv[1] if kv[0] == "opzione" else kv[1] == "1"
+
 		if "--tutte" in args:
 			var o := {}
 			for x in Dati.OPZIONI:
@@ -19,13 +27,13 @@ func _init() -> void:
 			cfg["opzioni"] = o
 		mo.nuova(cfg)
 		mo.diagnosi = "--diagnosi" in args
-		var ia: Array = [IA.new(mo), IA.new(mo)]
+		var ia: Array = [IANaw.new(mo), IANaw.new(mo)] if naw else [IA.new(mo), IA.new(mo)]
 		if "--fr_vecchia" in args:
 			ia[0] = IAVecchia.new(mo)
 		if "--al_vecchia" in args:
 			ia[1] = IAVecchia.new(mo)
 		for a in args:
-			if str(a).contains("="):
+			if str(a).contains("=") and not str(a).begins_with("var:"):
 				# k=v per entrambi, fr:k=v o al:k=v per un solo lato
 				var s := str(a)
 				var lati := [0, 1]
@@ -68,6 +76,8 @@ func _init() -> void:
 			mo.stat["villaggi_FR"] = nv
 			mo.stat["turno_fine"] = int(mo.s["turno"]) + 1
 		print("STAT ", JSON.stringify(mo.stat))
+		if mo.s.has("naw"):
+			print("NAW ", JSON.stringify(mo.s["naw"]))
 		if "--log" in args:
 			for l in mo.s["log"]:
 				print("   ", l)

@@ -15,6 +15,20 @@ func _run():
 	var modo: String = args[0] if args.size() > 0 else "menu"
 	var sc: String = args[1] if args.size() > 1 else "bellealliance"
 	await shot("menu")
+	if modo == "serie":
+		quit(); return
+	if modo.begins_with("naw_menu"):
+		# naw_menu <gioco>: il menu di Napoleon at War con una battaglia scelta
+		main.serie = "naw"
+		main.naw_gioco = sc if sc != "bellealliance" else "marengo"
+		main.mostra_menu()
+		await shot("naw_menu_" + main.naw_gioco)
+		quit(); return
+	if sc.begins_with("naw_"):
+		main.serie = "naw"
+	else:
+		main.serie = "nlb"
+		main.mostra_menu()
 	if modo.begins_with("menu_"):
 		main.scelta_scen = modo.substr(5)
 		main._menu_scheda()
@@ -97,6 +111,10 @@ func _run():
 		await create_timer(0.35).timeout
 		root.get_viewport().get_texture().get_image().save_png("/tmp/shot_effetti2.png")
 		print("shot effetti")
+		quit(); return
+	if modo == "eserciti":
+		main._eserciti_naw()
+		await shot("eserciti")
 		quit(); return
 	if modo == "plance":
 		main._plance_popup()

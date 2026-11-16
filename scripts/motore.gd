@@ -27,6 +27,23 @@ static func carica_catalogo() -> void:
 		return
 	catalogo = JSON.parse_string(FileAccess.open("res://assets/dati/catalogo.json", FileAccess.READ).get_as_text())
 	scenari = JSON.parse_string(FileAccess.open("res://assets/dati/scenari.json", FileAccess.READ).get_as_text())
+	# Napoleon at War: le pedine e gli scenari dei quattro giochi (tools/naw)
+	var naw: Dictionary = JSON.parse_string(FileAccess.open("res://assets/dati/naw.json", FileAccess.READ).get_as_text())
+	catalogo["unita"].merge(naw["unita"])
+	scenari.merge(naw["scenari"])
+
+## Il gioco di uno scenario: "nlb" (Napoleon's Last Battles) o "naw" (Napoleon at War)
+static func sistema_di(k: String) -> String:
+	carica_catalogo()
+	return str(scenari.get(k, {}).get("sistema", "nlb"))
+
+## Nome di un lato per i testi (Francesi / Alleati; in Napoleon at War dipende dal gioco)
+func nome_lato(l: int) -> String:
+	return Dati.LATI[l]
+
+## Data e ora del turno per la barra in alto
+func testo_data() -> String:
+	return "%d giugno, ore %s · turno %d di %d" % [giorno(), ora(), mini(int(s["turno"]) + 1, scen["turni"].size()), scen["turni"].size()]
 
 # =============================================================================================
 # Avvio
@@ -497,7 +514,7 @@ func _inizio_turno_giocatore() -> void:
 			c["h"] = str(c["e"]).split("|")[0]
 	_ricalcola()
 	if arrivi > 0:
-		_log("%s: %d rinforzi possono entrare." % [Dati.LATI[s["lato"]], arrivi])
+		_log("%s: %d rinforzi possono entrare." % [nome_lato(int(s["lato"])), arrivi])
 
 func _fine_movimento() -> bool:
 	# controllo dell'impilamento
@@ -2146,7 +2163,7 @@ func _controlla_vittoria(fine: bool) -> void:
 				perche = "Fine della campagna: i Francesi si fermano a %d punti vittoria (ne servivano 230)." % p
 	if v >= 0:
 		s["esito"] = {"vince": v, "perche": perche}
-		_log("[b]Fine della partita: vincono i %s.[/b] %s" % [Dati.LATI[v], perche])
+		_log("[b]Fine della partita: vincono i %s.[/b] %s" % [nome_lato(v), perche])
 		eventi.append({"k": "fine"})
 
 func punti_campagna() -> int:

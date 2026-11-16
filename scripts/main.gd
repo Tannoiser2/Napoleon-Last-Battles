@@ -252,6 +252,8 @@ func immagine(path: String, w: float, h: float) -> TextureRect:
 	return t
 
 func img_pedina(id: String, ridotta := false) -> String:
+	if id.length() > 1 and id[1] in ["M", "W", "N", "J"]:
+		return "res://assets/naw/pedine/%s.webp" % id
 	# i capi mostrano il retro quando sono demoralizzati o inattivi
 	if id.begins_with("c") and m != null and m.s["capi"].has(id):
 		ridotta = m.capo_girato(id)
@@ -349,13 +351,11 @@ func _carica_opzioni() -> void:
 	for x in Dati.OPZIONI:
 		if not opz_scelte.has(x[0]):
 			opz_scelte[x[0]] = x[0] in Dati.OPZIONI_ATTIVE
-	if Mappa.tasselli_nuova.is_empty():
-		mappa_nuova = false
 
 func _salva_opzioni() -> void:
 	var f := FileAccess.open(SALVA_OPZIONI, FileAccess.WRITE)
 	if f:
-		f.store_string(JSON.stringify({"mappa_nuova": mappa_nuova, "pedine_2015": pedine_2015, "regole": opz_scelte}))
+		f.store_string(JSON.stringify({"mappa_nuova": mappa_nuova, "pedine_2015": pedine_2015, "regole": opz_scelte, "serie": serie}))
 
 func _cambia_mappa() -> void:
 	mappa_nuova = not mappa_nuova
@@ -371,10 +371,14 @@ func _cambia_pedine() -> void:
 	if m != null:
 		_aggiorna_tutto()
 
+## La mappa ridisegnata in 3D esiste solo per Last Battles
+func _mappa3d() -> bool:
+	return mappa_nuova and not Mappa.tasselli_nuova.is_empty()
+
 func _costruisci_mappa() -> void:
 	for c in nodo_mappa.get_children():
 		c.queue_free()
-	if mappa_nuova:
+	if _mappa3d():
 		nodo_mappa.add_child(_mappa_esagoni())
 		return
 	# le quattro scansioni originali, unite (in quattro tasselli per le texture)
@@ -389,7 +393,7 @@ func _costruisci_mappa() -> void:
 			pq.size = Vector2(w * SC, h * SC)
 			mp.mesh = pq
 			var mm := StandardMaterial3D.new()
-			mm.albedo_texture = _con_mipmap("res://assets/mappa/mappa_%d%d.webp" % [j, i])
+			mm.albedo_texture = _con_mipmap(Mappa.cartella + "mappa_%d%d.webp" % [j, i])
 			mm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 			mm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			mp.material_override = mm
@@ -400,7 +404,7 @@ func _costruisci_mappa() -> void:
 const QUOTA_BASE := 0.035
 const QUOTE := {"c": 0.16, "e": 0.075, "f": 0.1}
 func quota(h: String) -> float:
-	if not mappa_nuova:
+	if not _mappa3d():
 		return 0.0
 	return QUOTE.get(Mappa.quote.get(h, ""), QUOTA_BASE)
 
@@ -1096,13 +1100,13 @@ func _esagono_sotto(pos: Vector2) -> String:
 	var d := cam.project_ray_normal(pos)
 	if absf(d.y) < 0.0001:
 		return ""
-	var piano := QUOTA_BASE if mappa_nuova else 0.0
+	var piano := QUOTA_BASE if _mappa3d() else 0.0
 	var t := (piano - o.y) / d.y
 	if t < 0:
 		return ""
 	var p := o + d * t
 	var h := Mappa.esagono_in(Vector2(p.x / SC, p.z / SC))
-	if mappa_nuova and h != "":
+	if _mappa3d() and h != "":
 		# gli esagoni rialzati: si riprova alla loro quota
 		var t2 := (quota(h) - o.y) / d.y
 		var p2 := o + d * t2
@@ -1210,7 +1214,7 @@ func _mostra_tip(h: String, pos: Vector2) -> void:
 	for l in [0, 1]:
 		var ids := m.unita_in(h, l)
 		if not ids.is_empty():
-			righe.append("%s: %s" % [Dati.LATI_BREVI[l], ", ".join(ids.map(func(x): return "%s %d-%d" % [m.nome(x), m.forza(x), m.ma(x)]))])
+			righe.append("%s: %s" % [_nl(l), ", ".join(ids.map(func(x): return "%s %d-%d" % [m.nome(x), m.forza(x), m.ma(x)]))])
 		var cp := m.capi_in(h, l)
 		if not cp.is_empty():
 			righe.append("   " + ", ".join(cp.map(func(x): return m.nome(x))))
@@ -1264,7 +1268,24 @@ var menu_cornici := {}        # scenario -> cornice di selezione
 var menu_img := {}            # scenario -> immagine
 var menu_hover := ""
 
+## Il gioco scelto all'avvio: "" (da scegliere), "nlb" (Napoleon's Last Battles) o "naw" (Napoleon at War)
+var serie := ""
+var naw_varianti := {"opzione": "A", "louis": false, "bernadotte": false}
+const NAW_GIOCHI := ["marengo", "jena", "wagram", "nazioni"]
+## Riquadri delle quattro battaglie sulla scatola di Napoleon at War (frazioni dell'immagine)
+const NAW_RIQUADRI := {"marengo": Rect2(0.066, 0.188, 0.438, 0.349), "jena": Rect2(0.52, 0.188, 0.434, 0.349),
+	"wagram": Rect2(0.066, 0.548, 0.438, 0.398), "nazioni": Rect2(0.52, 0.548, 0.434, 0.398)}
+
 func mostra_menu() -> void:
+	if serie == "":
+		_menu_serie()
+		return
+	if serie == "naw":
+		_menu_naw()
+		return
+	if Mappa.file_attuale != "res://assets/mappa/mappa.json":
+		Mappa.carica()
+		_costruisci_mappa()
 	pulisci()
 	m = null
 	menu_aperto = true
@@ -1379,6 +1400,249 @@ func mostra_menu() -> void:
 func _menu_ridimensiona() -> void:
 	if menu_aperto and not in_partita and m == null and not popup_aperto:
 		mostra_menu()
+
+# ---------- la scelta del gioco: Napoleon's Last Battles o Napoleon at War
+
+func _menu_serie() -> void:
+	pulisci()
+	m = null
+	menu_aperto = true
+	_aggiorna_pezzi_vuoti()
+	_sfondo()
+	if not get_viewport().size_changed.is_connected(_menu_ridimensiona):
+		get_viewport().size_changed.connect(_menu_ridimensiona)
+	var vp := get_viewport().get_visible_rect().size
+	var v := VBoxContainer.new()
+	v.set_anchors_preset(Control.PRESET_FULL_RECT)
+	v.offset_left = 30
+	v.offset_right = -30
+	v.offset_top = 24
+	v.offset_bottom = -24
+	v.add_theme_constant_override("separation", 14)
+	schermo.add_child(v)
+	var t := etichetta("Quale gioco?", F_TITOLO, 44, C_ORO)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(t)
+	var hb := HBoxContainer.new()
+	hb.alignment = BoxContainer.ALIGNMENT_CENTER
+	hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	hb.add_theme_constant_override("separation", 40)
+	v.add_child(hb)
+	var alto := vp.y - 260.0
+	var largo := minf((vp.x - 140.0) / 2.0, alto * 0.8)
+	alto = largo / 0.8
+	for g in [["nlb", "res://assets/ui/copertina.webp", "Napoleon's Last Battles", "Ligny, Quatre Bras, Wavre, La Belle Alliance e la campagna di Waterloo (1815)"],
+			["naw", "res://assets/ui/naw_scatola.webp", "Napoleon at War", "Marengo, Jena-Auerstadt, Wagram e la battaglia delle Nazioni (1800-1813)"]]:
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 8)
+		col.custom_minimum_size.x = largo
+		hb.add_child(col)
+		var b := TextureButton.new()
+		b.texture_normal = load(g[1])
+		b.ignore_texture_size = true
+		b.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+		b.custom_minimum_size = Vector2(largo, alto)
+		var k: String = g[0]
+		b.pressed.connect(func():
+			serie = k
+			_salva_opzioni()
+			mostra_menu())
+		col.add_child(b)
+		var bt := bottone(g[2], func():
+			serie = k
+			_salva_opzioni()
+			mostra_menu(), 26)
+		col.add_child(bt)
+		var d := etichetta(g[3], F_CORSIVO, 18, C_CARTA)
+		d.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		d.custom_minimum_size.x = largo
+		col.add_child(d)
+
+# ---------- Napoleon at War: la scatola con le quattro battaglie a sinistra, scelte e opzioni a destra
+
+var naw_gioco := "marengo"
+var naw_scen := {"nazioni": "naw_nazioni"}
+
+func _scen_naw(g: String) -> String:
+	return naw_scen.get(g, "naw_" + g)
+
+func _menu_naw() -> void:
+	scelta_scen = _scen_naw(naw_gioco)
+	var file := "res://assets/naw/%s/mappa.json" % naw_gioco
+	if Mappa.file_attuale != file:
+		Mappa.carica(file)
+		_costruisci_mappa()
+	pulisci()
+	m = null
+	menu_aperto = true
+	_aggiorna_pezzi_vuoti()
+	bersaglio_cam = Vector3(Mappa.larg * SC / 2, 0, Mappa.alt * SC / 2)
+	distanza = 34.0
+	pitch = -1.0
+	yaw = 0.3
+	_aggiorna_camera()
+	_sfondo()
+	if not get_viewport().size_changed.is_connected(_menu_ridimensiona):
+		get_viewport().size_changed.connect(_menu_ridimensiona)
+	var vp := get_viewport().get_visible_rect().size
+	var margine := 24.0
+	var asp := 1000.0 / 1255.0
+	var th := vp.y - 2 * margine
+	var tw := th * asp
+	if tw > vp.x - 3 * margine - 520.0:
+		tw = vp.x - 3 * margine - 520.0
+		th = tw / asp
+	var tav := Control.new()
+	tav.position = Vector2(margine, (vp.y - th) / 2.0)
+	tav.size = Vector2(tw, th)
+	tav.custom_minimum_size = tav.size
+	tav.mouse_filter = Control.MOUSE_FILTER_STOP
+	schermo.add_child(tav)
+	var img := TextureRect.new()
+	img.texture = load("res://assets/ui/naw_scatola.webp")
+	img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	img.stretch_mode = TextureRect.STRETCH_SCALE
+	img.size = tav.size
+	img.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tav.add_child(img)
+	menu_cornici = {}
+	for g in NAW_RIQUADRI:
+		var r: Rect2 = NAW_RIQUADRI[g]
+		var cor := Panel.new()
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0, 0, 0, 0)
+		sb.border_color = C_ORO
+		sb.set_border_width_all(6)
+		sb.set_corner_radius_all(6)
+		cor.add_theme_stylebox_override("panel", sb)
+		cor.position = Vector2(r.position.x * tw, r.position.y * th) - Vector2(4, 4)
+		cor.size = Vector2(r.size.x * tw, r.size.y * th) + Vector2(8, 8)
+		cor.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cor.visible = g == naw_gioco
+		tav.add_child(cor)
+		menu_cornici[g] = cor
+	tav.gui_input.connect(func(ev):
+		if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+			for g in NAW_RIQUADRI:
+				var r: Rect2 = NAW_RIQUADRI[g]
+				if Rect2(r.position * tw * Vector2(1, th / tw), r.size * Vector2(tw, th)).has_point(ev.position) and g != naw_gioco:
+					naw_gioco = g
+					mostra_menu.call_deferred()
+					return)
+	var pn := pannello()
+	pn.add_theme_stylebox_override("panel", stile(C_CARTA, C_BLU, 4, 6))
+	pn.position = Vector2(margine + tw + margine, margine)
+	pn.size = Vector2(vp.x - pn.position.x - margine, vp.y - 2 * margine)
+	schermo.add_child(pn)
+	var sc := ScrollContainer.new()
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	pn.add_child(sc)
+	menu_destra = VBoxContainer.new()
+	menu_destra.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	menu_destra.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	menu_destra.add_theme_constant_override("separation", 9)
+	sc.add_child(menu_destra)
+	_menu_scheda_naw()
+
+const NAW_DESCRIZIONI := {
+	"marengo": "14 giugno 1800, 14 turni di un'ora. Melas sorprende l'Armée de Réserve uscendo dalla testa di ponte di Alessandria; i rinforzi francesi arrivano a ondate e dal turno 9 Bonaparte può lanciare il contrattacco (forza d'attacco doppia per tre turni). Primo turno: movimento francese dimezzato. Vincono i Francesi con 33 punti austriaci eliminati e 10 punti entro 4 esagoni da Marengo; gli Austriaci con 30 punti francesi eliminati tenendo Marengo e Pietrabuona.",
+	"jena": "14 ottobre 1806, 12 turni: tre di notte (niente combattimento, niente boschi), due di nebbia (movimento dimezzato, niente tiro a distanza). Due battaglie sulla stessa mappa: Jena in alto, Auerstadt in basso, con il binario di transito francese fra le due. Il Prussiano sceglie l'opzione A (dividere l'esercito: Brunswick ad Auerstadt contro Davout) o B (tutti a Jena contro Napoleone). Demoralizzazione separata per ogni campo, punti vittoria alla fine.",
+	"wagram": "5-6 luglio 1809, 14 turni (5 e 6 di notte). L'esercito francese esce da Lobau nella piana del Marchfeld contro l'arciduca Carlo arroccato sulle alture della Russbach. Cavalleria e artiglieria non passano i ruscelli senza ponte. Demoralizzazione: chi perde troppo non avanza più dopo il combattimento. Dal turno 7 può arrivare l'arciduca Giovanni. Punti vittoria; ai Francesi ne servono almeno 75.",
+	"nazioni": "16-19 ottobre 1813, la battaglia più grande dell'epoca: i Francesi al centro, quattro eserciti alleati attorno a Lipsia. Niente artiglieria separata (è dentro le divisioni). Di notte ci si può sganciare. Il livello di demoralizzazione cambia con i giorni: il primo esercito demoralizzato perde. A fine partita i Francesi devono avere una linea di comunicazione fino a 2131.",
+}
+
+func _menu_scheda_naw() -> void:
+	for g in menu_cornici:
+		menu_cornici[g].visible = g == naw_gioco
+	var v := menu_destra
+	for c in v.get_children():
+		c.queue_free()
+	var k := _scen_naw(naw_gioco)
+	scelta_scen = k
+	var sc: Dictionary = Motore.scenari[k]
+	var tt := etichetta("NAPOLEON AT WAR", F_TITOLO, 22, C_ROSSO)
+	tt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(tt)
+	var t := etichetta(sc["titolo"], F_TITOLO, 40, C_BLU)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(t)
+	var s := etichetta("%s · %s" % [sc["sotto"], sc["data"]], F_CORSIVO, 20, C_INCHIOSTRO)
+	s.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(s)
+	var il := etichetta("%d turni · %s contro %s" % [sc["turni"].size(), sc["lati"][0], sc["lati"][1]], F_GRASSETTO, 17, C_SPENTO)
+	il.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(il)
+	v.add_child(HSeparator.new())
+	v.add_child(etichetta(NAW_DESCRIZIONI[naw_gioco], F_TESTO, 18))
+	v.add_child(etichetta(_forze_naw(k), F_CORSIVO, 17, C_INCHIOSTRO))
+	v.add_child(HSeparator.new())
+	if naw_gioco == "nazioni":
+		_menu_gruppo("Scenario", [["Primo giorno (turni 1-5)", "naw_nazioni1"], ["Terzo giorno (turni 13-20)", "naw_nazioni3"], ["La grande battaglia (20 turni)", "naw_nazioni"]],
+			func(o): return o[1] == k,
+			func(o):
+				naw_scen["nazioni"] = o[1]
+				_menu_scheda_naw.call_deferred())
+	if naw_gioco == "jena":
+		_menu_gruppo("Il piano prussiano", [["A: Brunswick ad Auerstadt", "A"], ["B: tutti a Jena", "B"]],
+			func(o): return o[1] == str(naw_varianti["opzione"]),
+			func(o): naw_varianti["opzione"] = o[1])
+		for x in [["louis", "Rinforzi facoltativi: Luigi Ferdinando non è caduto a Saalfeld (20.1)"], ["bernadotte", "Bernadotte marcia su Auerstadt in aiuto di Davout (20.2)"]]:
+			var cb := CheckBox.new()
+			cb.text = x[1]
+			cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			cb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			cb.add_theme_font_size_override("font_size", 17)
+			cb.button_pressed = bool(naw_varianti.get(x[0], false))
+			var kk: String = x[0]
+			cb.toggled.connect(func(on): naw_varianti[kk] = on)
+			v.add_child(cb)
+	_menu_gruppo("Chi comandi", [["I " + sc["lati"][0], "ia", 0], ["Gli " + sc["lati"][1] if str(sc["lati"][1]).begins_with("A") else "I " + sc["lati"][1], "ia", 1], ["Due giocatori qui", "due", 0], ["Guardo l'IA", "guarda", 0]],
+		func(o): return o[1] == scelta_modo and (o[1] != "ia" or o[2] == scelta_lato),
+		func(o):
+			scelta_modo = o[1]
+			scelta_lato = o[2])
+	if scelta_modo != "due":
+		_menu_gruppo("Avversario (IA)", [["prudente", 0], ["normale", 1], ["aggressivo", 2]],
+			func(o): return carattere_ia == o[1],
+			func(o): carattere_ia = o[1])
+	v.add_child(HSeparator.new())
+	v.add_child(bottone("Alle armi!", _avvia_locale, 30))
+	var r2 := HFlowContainer.new()
+	r2.add_theme_constant_override("h_separation", 8)
+	r2.add_theme_constant_override("v_separation", 8)
+	v.add_child(r2)
+	if FileAccess.file_exists(SALVA_LOCALE):
+		r2.add_child(bottone("Continua la partita salvata", _menu_continua, 17))
+	r2.add_child(bottone("Partita salvata su Firebase", _continua_firebase, 17))
+	r2.add_child(bottone("Le regole in breve", _menu_regole, 17))
+	r2.add_child(bottone("Cambia gioco: Napoleon's Last Battles", func():
+		serie = "nlb"
+		_salva_opzioni()
+		mostra_menu(), 17))
+	var nota := etichetta("Quadrigioco SPI del 1975 (Isby, Hardy, Curran). Versione digitale per uso personale.", F_CORSIVO, 15, C_SPENTO)
+	nota.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(nota)
+
+func _forze_naw(k: String) -> String:
+	var sc: Dictionary = Motore.scenari[k]
+	var conta := [[0, 0, 0], [0, 0, 0]]
+	var visti := {}
+	for gruppo in ["unita", "rinforzi", "zone"]:
+		for e in sc.get(gruppo, []):
+			if visti.has(e["u"]) or str(e.get("opz", "")) in ["B", "AL", "BL"]:
+				continue
+			visti[e["u"]] = true
+			var u: Dictionary = Motore.catalogo["unita"][e["u"]]
+			var l := 0 if u["es"] == "FR" else 1
+			conta[l][0] += 1
+			conta[l][1] += int(u["f"])
+			if gruppo == "rinforzi":
+				conta[l][2] += 1
+	var parti := []
+	for l in 2:
+		parti.append("%s: %d unità, %d punti forza%s" % [sc["lati"][l], conta[l][0], conta[l][1], (" (%d in arrivo)" % conta[l][2]) if conta[l][2] > 0 else ""])
+	return "In campo. " + ";  ".join(parti) + "."
+
 
 func _menu_input(ev: InputEvent, wc: float, hc: float, gap: float, gv: float, d: float) -> void:
 	var p := Vector2.ZERO
@@ -1589,6 +1853,10 @@ func _menu_scheda() -> void:
 	r2.add_child(bottone("Partita salvata su Firebase", _continua_firebase, 17))
 	r2.add_child(bottone("Gioca online", _menu_online, 17))
 	r2.add_child(bottone("Le regole in breve", _menu_regole, 17))
+	r2.add_child(bottone("Cambia gioco: Napoleon at War", func():
+		serie = "naw"
+		_salva_opzioni()
+		mostra_menu(), 17))
 	var nota := etichetta("Quadrigioco SPI del 1976 (Kevin Zucker), regole riviste. Versione digitale per uso personale.", F_CORSIVO, 15, C_SPENTO)
 	nota.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(nota)
@@ -1637,17 +1905,20 @@ func _avvia_locale() -> void:
 			umani = [true, true]
 		_:
 			umani = [false, false]
-	m = Motore.new()
+	m = _nuovo_motore(scelta_scen)
 	m.nuova(_cfg_partita(int(Time.get_unix_time_from_system()) % 1000000))
 	_prepara_ia()
 	_apri_partita()
 	_salva(true)
 
 func _cfg_partita(seed: int) -> Dictionary:
-	return {"scen": scelta_scen, "seed": seed, "opzioni": opz_scelte.duplicate(), "opzionali": opz_opzionali}
+	return {"scen": scelta_scen, "seed": seed, "opzioni": opz_scelte.duplicate(), "opzionali": opz_opzionali, "varianti": naw_varianti.duplicate()}
+
+func _nuovo_motore(k: String) -> Motore:
+	return MotoreNaw.new() if Motore.sistema_di(k) == "naw" else Motore.new()
 
 func _prepara_ia() -> void:
-	ia = [IA.new(m), IA.new(m)]
+	ia = [IANaw.new(m), IANaw.new(m)] if m is MotoreNaw else [IA.new(m), IA.new(m)]
 	for x in ia:
 		x.carattere = carattere_ia
 
@@ -1671,8 +1942,9 @@ func _continua_firebase() -> void:
 
 func _carica_stato(st: Dictionary) -> void:
 	online = false
-	m = Motore.new()
-	m.importa(st.get("motore", st))
+	var stm: Dictionary = st.get("motore", st)
+	m = _nuovo_motore(str(stm.get("scen", "")))
+	m.importa(stm)
 	var u = st.get("umani", [true, false])
 	umani = [bool(u[0]), bool(u[1])] if u is Array and u.size() == 2 else [true, false]
 	carattere_ia = int(st.get("carattere", 1))
@@ -1692,7 +1964,7 @@ func _testo_regole() -> RichTextLabel:
 	rt.add_theme_font_override("italics_font", F_CORSIVO)
 	for k in ["normal_font_size", "bold_font_size", "italics_font_size"]:
 		rt.add_theme_font_size_override(k, 19)
-	rt.text = Guida.TESTO
+	rt.text = Guida.TESTO_NAW if (serie == "naw" or m is MotoreNaw) else Guida.TESTO
 	return rt
 
 func _menu_regole() -> void:
@@ -1839,7 +2111,7 @@ func _avvia_da_stanza(room: Dictionary) -> void:
 	online = true
 	posti_lati = [int(game["lati"][0]), int(game["lati"][1])]
 	umani = [posti_lati[0] == mio_posto, posti_lati[1] == mio_posto]
-	m = Motore.new()
+	m = _nuovo_motore(str(game.get("scen", "")))
 	m.nuova(game)
 	_prepara_ia()
 	var log := await net.get_decisions(codice, 0)
@@ -1870,6 +2142,7 @@ func _chi(lato: int) -> String:
 func _apri_partita() -> void:
 	pulisci()
 	in_partita = true
+	_costruisci_mappa()
 	sel_hex = ""
 	_annulla_selezione()
 	_costruisci_hud()
@@ -1924,7 +2197,8 @@ func _costruisci_hud() -> void:
 		br.toggle_mode = true
 		br.button_pressed = vedi_rif
 		hb.add_child(br)
-	for b in [["Registro", _mostra_diario], ["Plance", _plance_popup], ["Tabelle", _tabelle_popup], ["Vista", _cambia_vista], ["Regole", _regole_popup], ["Menu", _menu_partita]]:
+	var naw := m is MotoreNaw
+	for b in [["Registro", _mostra_diario], ["Eserciti" if naw else "Plance", _eserciti_naw if naw else _plance_popup], ["Tabelle", _tabelle_popup], ["Vista", _cambia_vista], ["Regole", _regole_popup], ["Menu", _menu_partita]]:
 		var bt := bottone(b[0], b[1], 16)
 		hb.add_child(bt)
 	var sx := pannello(Color(0.96, 0.92, 0.83, 0.96))
@@ -2095,17 +2369,25 @@ func _tabelle_popup() -> void:
 		g.add_child(_cella(str(r + 1), true))
 		for c in 10:
 			g.add_child(_cella(Dati.TRC[r][c], false, r % 2 == 0))
-	v.add_child(etichetta("AE attaccante eliminato · AR l'attaccante si ritira di un esagono · DR il difensore si ritira · DE difensore eliminato · EX scambio: il difensore è eliminato e l'attaccante perde almeno altrettanti punti stampati. Oltre 6-1 vale 6-1, sotto 1-5 vale 1-5; armi combinate: una colonna a destra.", F_TESTO, 17))
+	v.add_child(etichetta("AE attaccante eliminato · AR l'attaccante si ritira di un esagono · DR il difensore si ritira · DE difensore eliminato · EX scambio: il difensore è eliminato e l'attaccante perde almeno altrettanti punti stampati. Oltre 6-1 vale 6-1, sotto 1-5 vale 1-5%s" % ("; i rapporti si possono abbassare a piacere prima del dado (7.9)." if m is MotoreNaw else "; armi combinate: una colonna a destra."), F_TESTO, 17))
 	v.add_child(etichetta("Effetti del terreno", F_TITOLO, 24, C_BLU))
 	var t := GridContainer.new()
 	t.columns = 3
 	t.add_theme_constant_override("h_separation", 18)
 	v.add_child(t)
-	for r in [["Terreno", "Punti movimento", "Combattimento"], ["Aperto", "1", "nessun effetto"], ["Bosco", "4 cavalleria, 2 fanteria e artiglieria", "cavalleria a metà"],
+	var righe_t := [["Terreno", "Punti movimento", "Combattimento"], ["Aperto", "1", "nessun effetto"], ["Bosco", "4 cavalleria, 2 fanteria e artiglieria", "cavalleria a metà"],
 			["Palude", "4 cavalleria, 2 fanteria e artiglieria", "cavalleria a metà"], ["Cresta (lato)", "+0", "blocca il tiro d'artiglieria"],
 			["Strada (lato)", "1/2", "terreno dell'esagono"], ["Sentiero (lato)", "1", "terreno dell'esagono"], ["Fattoria fortificata", "2", "difensore triplicato; fanteria: massimo 4-1 e DR senza effetto"],
 			["Paese", "1", "difensore raddoppiato"], ["Fiume (lato)", "solo dai ponti", "attacco solo dai ponti o col tiro"],
-			["Ruscello (lato)", "+2", "difensore raddoppiato se attaccato solo da lì"], ["Ponte (lato)", "+0", "difensore raddoppiato se attaccato solo da lì"]]:
+			["Ruscello (lato)", "+2", "difensore raddoppiato se attaccato solo da lì"], ["Ponte (lato)", "+0", "difensore raddoppiato se attaccato solo da lì"]]
+	if m is MotoreNaw:
+		righe_t = [["Terreno", "Punti movimento", "Combattimento"], ["Aperto", "1", "nessun effetto"], ["Bosco", "2", "nessun effetto; blocca il tiro"],
+			["Terreno accidentato", "2", "difensore raddoppiato"], ["Pendio (lato)", "+1 salendo dal tratteggio", "difensore raddoppiato se attaccato solo dal basso"],
+			["Strada (lato)", "1/2", "terreno dell'esagono"], ["Sentiero (lato, Marengo)", "1", "terreno dell'esagono"],
+			["Palude (Nazioni)", "solo per strada", "difensore raddoppiato"], ["Paese", "1", "difensore raddoppiato; blocca il tiro"],
+			["Fiume (lato)", "solo dai ponti", "attacco solo dai ponti o col tiro"], ["Ruscello (lato)", "+2 (Wagram: vietato a cavalleria e artiglieria)", "difensore raddoppiato se attaccato solo da lì"],
+			["Ponte (lato)", "+0", "difensore raddoppiato se attaccato solo da lì"]]
+	for r in righe_t:
 		for i in 3:
 			t.add_child(riga_lbl(r[i], F_GRASSETTO if r[0] == "Terreno" else F_TESTO, 17, C_BLU if r[0] == "Terreno" else C_INCHIOSTRO))
 	var rb := HBoxContainer.new()
@@ -2133,6 +2415,42 @@ func _cella(t: String, intest: bool, chiara := false) -> Control:
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	p.add_child(l)
 	return p
+
+## Napoleon at War: perdite, demoralizzazione, unità eliminate e in arrivo per lato
+func _eserciti_naw() -> void:
+	var n := m as MotoreNaw
+	var v := _apri_popup("Gli eserciti", 1100)
+	var sc := ScrollContainer.new()
+	sc.custom_minimum_size = Vector2(1060, 600)
+	v.add_child(sc)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 10)
+	sc.add_child(col)
+	col.add_child(etichetta(n.testo_punteggio(), F_GRASSETTO, 20, C_BLU))
+	for l in 2:
+		col.add_child(etichetta(_nl(l), F_TITOLO, 26, COL_LATO[l].darkened(0.3)))
+		var testo := "Punti forza persi: %d" % n.perdite_lato(l)
+		if n.gioco in ["wagram", "nazioni"]:
+			testo += " · demoralizzazione a %d%s" % [n.livello_naw(l), "  — DEMORALIZZATO" if m.s["dem"].get(str(l), false) else ""]
+		col.add_child(etichetta(testo, F_TESTO, 18))
+		var fl := HFlowContainer.new()
+		fl.add_theme_constant_override("h_separation", 4)
+		fl.add_theme_constant_override("v_separation", 4)
+		col.add_child(fl)
+		for id in m.s["unita"]:
+			if m.lato_di(id) == l and m.s["unita"][id]["st"] in ["elim", "uscita"]:
+				var t := immagine(img_pedina(id), 54, 54)
+				t.modulate = Color(0.75, 0.75, 0.75) if m.s["unita"][id]["st"] == "uscita" else Color(1, 1, 1)
+				t.tooltip_text = m.nome(id) + (" (uscita)" if m.s["unita"][id]["st"] == "uscita" else " (eliminata)")
+				fl.add_child(t)
+		var arr := []
+		for id in m.s["unita"]:
+			var u: Dictionary = m.s["unita"][id]
+			if m.lato_di(id) == l and u["st"] == "arrivo" and int(u["t"]) >= 0:
+				arr.append("%s (turno %d)" % [m.nome(id), int(u["t"]) + 1])
+		if not arr.is_empty():
+			col.add_child(etichetta("In arrivo: " + ", ".join(arr), F_CORSIVO, 16, C_SPENTO))
+	v.add_child(bottone("Chiudi", _chiudi_popup, 20))
 
 ## Plance: le perdite e la demoralizzazione di ogni esercito sulle plance originali dei corpi
 func _plance_popup() -> void:
@@ -2225,6 +2543,10 @@ func _stato_esercito(es: String) -> Control:
 
 # ---------- aggiornamento
 
+## Nome di un lato nella partita in corso (Francesi / Alleati, Austriaci, Prussiani...)
+func _nl(l: int) -> String:
+	return m.nome_lato(l) if m != null else Dati.LATI[l]
+
 func _fase_mia(k: String) -> bool:
 	if m == null or m.finita():
 		return false
@@ -2234,14 +2556,16 @@ func _fase_mia(k: String) -> bool:
 func _aggiorna_tutto() -> void:
 	if m == null or lbl_data == null:
 		return
-	lbl_data.text = "%d giugno, ore %s · turno %d di %d" % [m.giorno(), m.ora(), mini(int(m.s["turno"]) + 1, m.scen["turni"].size()), m.scen["turni"].size()]
+	lbl_data.text = m.testo_data()
 	var r := m.richiesta()
 	if m.finita():
 		lbl_fase.text = "Partita finita"
 	else:
 		var fase: String = {"movimento": "movimento", "combattimento": "combattimento", "avanza": "avanzata dopo il combattimento"}.get(r.get("k", ""), "")
-		lbl_fase.text = "%s — %s%s" % [Dati.LATI[m.s["lato"]], fase, "  (notte)" if m.notte() else ("  (pioggia)" if m.pioggia() else "")]
-	if m.campagna():
+		lbl_fase.text = "%s — %s%s" % [_nl(int(m.s["lato"])), fase, "  (notte)" if m.notte() else ("  (pioggia)" if m.pioggia() else ("  (nebbia)" if m is MotoreNaw and (m as MotoreNaw).nebbia() else ""))]
+	if m is MotoreNaw:
+		lbl_pv.text = (m as MotoreNaw).testo_punteggio()
+	elif m.campagna():
 		lbl_pv.text = "Punti vittoria francesi %d / 230" % m.punti_campagna()
 	elif m.s["scen"] in ["quatrebras", "wavre"]:
 		lbl_pv.text = "Punti  Francia %d · Alleati %d" % [int(m.s["pv"][0]), int(m.s["pv"][1])]
@@ -2271,12 +2595,12 @@ func _aggiorna_pannello() -> void:
 	var lato := int(r.get("lato", 0))
 	var chi := _chi(lato)
 	if chi != "io":
-		lbl_stato.text = "Tocca a: %s%s" % [Dati.LATI[lato], " (IA)" if chi == "ia" else " (in attesa dell'avversario)"]
+		lbl_stato.text = "Tocca a: %s%s" % [_nl(lato), " (IA)" if chi == "ia" else " (in attesa dell'avversario)"]
 		_info_esagono(sel_hex)
 		return
 	match r["k"]:
 		"movimento":
-			lbl_stato.text = "%s: movimento. Tocca un esagono con le tue unità, scegli l'unità e poi la destinazione (in verde)." % Dati.LATI[lato]
+			lbl_stato.text = "%s: movimento. Tocca un esagono con le tue unità, scegli l'unità e poi la destinazione (in verde)." % _nl(lato)
 			var fine := bottone("Fine del movimento", func():
 				_annulla_selezione()
 				_invia({"a": "fine"}), 21)
@@ -2286,7 +2610,7 @@ func _aggiorna_pannello() -> void:
 				box_azioni.add_child(etichetta("Troppe unità in %s: al massimo due per esagono (una nelle fattorie)." % ", ".join(amm.map(func(h): return Mappa.sigla(h))), F_GRASSETTO, 17, C_ROSSO))
 			_pannello_movimento(lato)
 		"combattimento":
-			lbl_stato.text = "%s: combattimento. Tocca un esagono nemico (in arancio quelli da attaccare per forza), scegli chi attacca e premi «Attacca»." % Dati.LATI[lato]
+			lbl_stato.text = "%s: combattimento. Tocca un esagono nemico (in arancio quelli da attaccare per forza), scegli chi attacca e premi «Attacca»." % _nl(lato)
 			_pannello_combattimento(lato)
 		"avanza":
 			lbl_stato.text = "Il nemico ha lasciato l'esagono: un'unità vincitrice può avanzare. Tocca sulla mappa un'unità con l'anello d'oro per farla avanzare, oppure l'esagono vuoto (in blu) per restare dove sei."
@@ -2301,7 +2625,7 @@ func _aggiorna_pannello() -> void:
 					pannello_info.add_child(_riga_unita(c[0]))
 			_info_esagono(sel_hex)
 		"ritirata_cav":
-			lbl_stato.text = "%s: prima del combattimento la cavalleria e l'artiglieria a cavallo a contatto (non con cavalleria nemica) possono ritirarsi di un esagono (15.3)." % Dati.LATI[lato]
+			lbl_stato.text = "%s: prima del combattimento la cavalleria e l'artiglieria a cavallo a contatto (non con cavalleria nemica) possono ritirarsi di un esagono (15.3)." % _nl(lato)
 			for id in r["cand"]:
 				var x: String = id
 				var b := bottone("Ritira %s (%s)" % [m.nome(x), Mappa.sigla(m.s["unita"][x]["h"])], func(): _invia({"a": "ritira_cav", "u": x}), 17)
@@ -2320,7 +2644,7 @@ func _info_esagono(h: String) -> void:
 		var capi := m.capi_in(h, l)
 		if ids.is_empty() and capi.is_empty():
 			continue
-		pannello_info.add_child(etichetta(Dati.LATI[l], F_GRASSETTO, 19, COL_LATO[l].darkened(0.35)))
+		pannello_info.add_child(etichetta(_nl(l), F_GRASSETTO, 19, COL_LATO[l].darkened(0.35)))
 		for id in ids:
 			pannello_info.add_child(_riga_unita(id))
 		for c in capi:
@@ -2569,6 +2893,10 @@ func _pannello_combattimento(lato: int) -> void:
 		_invia({"a": "fine"}), 18)
 	bf.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box_azioni.add_child(bf)
+	if m is MotoreNaw and (m as MotoreNaw).contrattacco_possibile():
+		var bc := bottone("Lancia il contrattacco di Bonaparte (forza doppia per tre turni)", func(): _invia({"a": "contrattacco"}), 18)
+		bc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box_azioni.add_child(bc)
 	if sel_dif.is_empty():
 		if not ob["nemici"].is_empty():
 			pannello_info.add_child(etichetta("Da attaccare per forza: %s." % ", ".join(ob["nemici"].map(func(h): return Mappa.sigla(h))), F_TESTO, 17, C_ROSSO))
@@ -2796,7 +3124,7 @@ func _costruisci_pannello_battaglia() -> void:
 	var r1 := HBoxContainer.new()
 	r1.add_theme_constant_override("separation", 14)
 	v.add_child(r1)
-	var tit := riga_lbl("%s attaccano %s" % [Dati.LATI[la], ", ".join(rep["dif_hex"].map(func(h): return Mappa.sigla(h)))], F_TITOLO, 25, C_BLU)
+	var tit := riga_lbl("%s attaccano %s" % [_nl(la), ", ".join(rep["dif_hex"].map(func(h): return Mappa.sigla(h)))], F_TITOLO, 25, C_BLU)
 	tit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tit.clip_text = true
 	r1.add_child(tit)
@@ -3021,9 +3349,12 @@ func _avanza_con(id: String, h: String) -> void:
 func _mostra_fine() -> void:
 	var e: Dictionary = m.s["esito"]
 	var vince := int(e.get("vince", -1))
-	var v := _apri_popup("Vittoria dei %s" % Dati.LATI[vince] if vince >= 0 else "Fine", 780)
+	var v := _apri_popup(("Vittoria dei %s" % _nl(vince)) if vince in [0, 1] else ("Pareggio" if vince == 2 else "Fine"), 780)
 	v.add_child(etichetta(str(e.get("perche", "")), F_TESTO, 21))
-	v.add_child(etichetta("Perdite: Francesi %d, Prussiani %d, Anglo-alleati %d." % [int(m.s["perdite"]["FR"]), int(m.s["perdite"]["PR"]), int(m.s["perdite"]["AA"])], F_TESTO, 19))
+	if m is MotoreNaw:
+		v.add_child(etichetta("Perdite: %s %d, %s %d." % [_nl(0), (m as MotoreNaw).perdite_lato(0), _nl(1), (m as MotoreNaw).perdite_lato(1)], F_TESTO, 19))
+	else:
+		v.add_child(etichetta("Perdite: Francesi %d, Prussiani %d, Anglo-alleati %d." % [int(m.s["perdite"]["FR"]), int(m.s["perdite"]["PR"]), int(m.s["perdite"]["AA"])], F_TESTO, 19))
 	var r := HBoxContainer.new()
 	r.add_child(bottone("Guarda la mappa", _chiudi_popup, 20))
 	r.add_child(bottone("Menu principale", mostra_menu, 20))

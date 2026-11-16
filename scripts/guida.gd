@@ -45,3 +45,40 @@ Ogni esercito ha un livello di demoralizzazione (e gli Alleati uno di disintegra
 [b]Comandi[/b]
 Trascina per spostare la mappa, rotella o pizzico per lo zoom, tasto destro o due dita per ruotare (anche su iPad). Tocca un esagono per vederne le unità. «Plance» mostra le perdite di ogni esercito sulle plance originali dei corpi, «Tabelle» la Tabella dei risultati e il terreno.
 """
+
+## Napoleon at War (SPI 1975): regole standard ed esclusive dei quattro giochi, e cosa cambia rispetto a Last Battles
+const TESTO_NAW := """[b]Il gioco[/b]
+Quattro battaglie napoleoniche in un'unica scatola: Marengo (1800), Jena-Auerstadt (1806), Wagram (1809) e la battaglia delle Nazioni a Lipsia (1813). Un esagono vale 400-800 metri, un turno una o due ore, un punto forza 500-1000 uomini. Le pedine sono divisioni o brigate con forza e movimento (es. 6-4) e non hanno retro: un'unità è intera o eliminata.
+
+[b]Sequenza[/b]
+Movimento e combattimento del primo giocatore, poi del secondo. Muovono per primi gli Austriaci a Marengo, i Francesi negli altri tre giochi. I turni di notte non hanno combattimento.
+
+[b]Movimento e impilamento[/b]
+Aperto e paese 1 punto, bosco e terreno accidentato 2; strada 1/2 da un esagono di strada all'altro, sentiero (Marengo) 1. Un ruscello costa 2 in più, il fiume si passa solo dai ponti. Salire un pendio (dall'esagono col tratteggio verso quello in alto) costa 1 in più. La palude (Nazioni) si attraversa solo per strada. Si passa sopra le unità amiche, ma alla fine del movimento c'è al massimo [b]una unità per esagono[/b]. I rinforzi entrano dal loro esagono pagando 1 punto; se l'esagono è occupato aspettano o entrano dal più vicino.
+
+[b]Zone di controllo[/b]
+Le sei caselle attorno a ogni unità (non oltre un fiume senza ponte). Chi ci entra si ferma e ne esce solo ritirandosi o avanzando dopo un combattimento. Di notte non si entra nelle zone nemiche (a Lipsia però ci si può sganciare).
+
+[b]Combattimento[/b]
+Obbligatorio: ogni unità nella zona di controllo nemica deve attaccare e ogni nemico a contatto deve essere attaccato; ogni unità attacca e viene attaccata una sola volta per turno. Si sommano le forze e si arrotonda a favore del difensore (13 contro 4 = 3-1). Si può abbassare il rapporto a piacere prima del dado. La tabella è la stessa di Last Battles: AE, AR, DR, DE, EX (nello scambio l'attaccante perde almeno quanto il difensore, in punti stampati). Chi non può ritirarsi è eliminato; un'unità amica può essere spostata per fargli posto. Dopo il combattimento un'unità vincitrice può avanzare nell'esagono lasciato libero: è il modo per chiudere la ritirata ai nemici non ancora attaccati.
+
+[b]Artiglieria[/b]
+Bombarda a due esagoni, anche oltre il fiume, senza subire risultati; la linea di tiro è bloccata da boschi e paesi (non dai pendii). A contatto col nemico combatte come le altre unità. Nella battaglia delle Nazioni l'artiglieria è dentro le divisioni.
+
+[b]Terreno in difesa[/b]
+Difensore raddoppiato in paese, terreno accidentato e palude; e quando tutti gli attacchi passano da ruscelli o ponti, oppure salgono un pendio dal basso. I raddoppi non si sommano. Il bosco non aiuta il difensore, ma blocca il tiro.
+
+[b]Marengo[/b]
+14 turni. Primo turno: i Francesi, sorpresi, muovono a metà e non entrano nelle zone austriache. Dal turno 9 Bonaparte può lanciare il contrattacco: per tre turni la forza francese in attacco è doppia. Vincono i Francesi con 33 punti austriaci eliminati e almeno 10 punti entro 4 esagoni da Marengo (1412); gli Austriaci con 30 punti francesi eliminati tenendo Marengo e Pietrabuona (1111). Se nessuno infligge le perdite vince chi tiene i suoi obiettivi; se li tengono entrambi è pari.
+
+[b]Jena-Auerstadt[/b]
+12 turni: 1-3 di notte (e niente boschi), 4-5 di nebbia (movimento a metà, artiglieria solo a contatto). Due battaglie sulla stessa mappa (Jena sopra, Auerstadt sotto) con demoralizzazione separata: chi supera il suo livello combatte una colonna più a sinistra e viene attaccato una colonna più a destra. Il Prussiano sceglie l'opzione A (Brunswick verso Auerstadt) o B (tutti a Jena); facoltativi i rinforzi di Luigi Ferdinando e la marcia di Bernadotte su Auerstadt. I Francesi passano da una mappa all'altra col binario di transito (tre turni); dopo la demoralizzazione di un campo si può uscire dalla mappa. Punti vittoria a fine partita secondo le perdite e la demoralizzazione.
+
+[b]Wagram[/b]
+14 turni, il 5 e il 6 di notte. I Francesi partono attorno a Lobau (le artiglierie 10-1 non lasciano l'isola). Cavalleria e artiglieria non attraversano i ruscelli senza ponte, non attaccano attraverso e lì non estendono la zona di controllo. Demoralizzazione: i Francesi a 50 punti persi, gli Austriaci a 45; chi è demoralizzato non avanza più dopo il combattimento. Dal turno 7 all'11 gli Austriaci tirano un dado: con 1 arriva l'arciduca Giovanni da sud-est. Punti: 1 per punto forza nemico eliminato; gli Austriaci 25, 30 e 35 entrando ad Aspern, Essling e Gross Enzersdorf (e di nuovo se li tengono alla fine) e 1 per punto uscito a ovest; i Francesi 1 per ogni loro punto sulle alture della Russbach alla fine. Ai Francesi servono almeno 75 punti.
+
+[b]La battaglia delle Nazioni[/b]
+Tre scenari: primo giorno (turni 1-5), terzo giorno (13-20, con le unità già distrutte) e la grande battaglia (1-20). Notti ai turni 6, 12 e 18: si può uscire dalle zone nemiche ma non entrarci. Nel primo turno i Francesi non muovono. La demoralizzazione cresce coi giorni (Alleati/Francesi: 80/100 nei turni 1-5, 120/110 nei 6-11, 160/110 dal 12): il primo esercito demoralizzato perde. A fine partita le unità francesi che non hanno una via libera fino a 2131 (Lipsia) sono eliminate.
+
+[b]Cosa cambia rispetto a Napoleon's Last Battles[/b]
+Stesso sistema (Napoleon at Waterloo) e stessa tabella dei combattimenti, ma: una sola unità per esagono invece di due; niente forza ridotta; niente capi, comando né rifornimento; niente fattorie fortificate; la cavalleria non è dimezzata nel bosco e il bosco non raddoppia il difensore; nuovi terreni (pendii con tratteggio, terreno accidentato, palude, sentieri, laghi); i pendii non bloccano il tiro; la notte vieta di entrare nelle zone nemiche; ogni gioco ha la sua demoralizzazione (stop alle avanzate a Wagram, spostamento di colonna a Jena, fine della partita a Lipsia) e le sue regole esclusive (sorpresa e contrattacco a Marengo, nebbia e transito fra le mappe a Jena-Auerstadt, ruscelli e arciduca Giovanni a Wagram, ritirata notturna e linea di comunicazione a Lipsia)."""
