@@ -1,7 +1,7 @@
 {
-  "titolo": "Napoleon's Last Battles",
-  "sottotitolo": "la campagna di Waterloo",
-  "descrizione": "Il quadrigioco SPI del 1976 sui Cento Giorni: Ligny, Quatre Bras, Wavre e La Belle Alliance, giocabili da soli o unite nella campagna di tre giorni con comando dei capi, riorganizzazione e demoralizzazione dei corpi. Mappa 3D con le quattro mappe e le pedine originali, IA per il solitario, online con un amico e salvataggi su Firebase.",
+  "titolo": "Napoleon's Last Battles e Napoleon at War",
+  "sottotitolo": "otto battaglie napoleoniche",
+  "descrizione": "I due quadrigiochi SPI sulle guerre di Napoleone, da scegliere all'avvio. Napoleon's Last Battles (1976): Ligny, Quatre Bras, Wavre e La Belle Alliance, da sole o unite nella campagna di Waterloo con comando dei capi, riorganizzazione e demoralizzazione dei corpi. Napoleon at War (1975): Marengo, Jena-Auerstadt, Wagram e la battaglia delle Nazioni con le loro regole esclusive. Mappe 3D con le pedine originali, IA per il solitario, online con un amico e salvataggi su Firebase.",
   "online": true,
   "sezione": "conversione",
   "ordine": 206,

@@ -1273,8 +1273,8 @@ var serie := ""
 var naw_varianti := {"opzione": "A", "louis": false, "bernadotte": false}
 const NAW_GIOCHI := ["marengo", "jena", "wagram", "nazioni"]
 ## Riquadri delle quattro battaglie sulla scatola di Napoleon at War (frazioni dell'immagine)
-const NAW_RIQUADRI := {"marengo": Rect2(0.066, 0.188, 0.438, 0.349), "jena": Rect2(0.52, 0.188, 0.434, 0.349),
-	"wagram": Rect2(0.066, 0.548, 0.438, 0.398), "nazioni": Rect2(0.52, 0.548, 0.434, 0.398)}
+const NAW_RIQUADRI := {"marengo": Rect2(0.067, 0.198, 0.4216, 0.357), "jena": Rect2(0.509, 0.198, 0.4216, 0.357),
+	"wagram": Rect2(0.067, 0.567, 0.4216, 0.367), "nazioni": Rect2(0.509, 0.567, 0.4216, 0.367)}
 
 func mostra_menu() -> void:
 	if serie == "":
@@ -1486,7 +1486,7 @@ func _menu_naw() -> void:
 		get_viewport().size_changed.connect(_menu_ridimensiona)
 	var vp := get_viewport().get_visible_rect().size
 	var margine := 24.0
-	var asp := 1000.0 / 1255.0
+	var asp := 1122.0 / 1402.0
 	var th := vp.y - 2 * margine
 	var tw := th * asp
 	if tw > vp.x - 3 * margine - 520.0:
