@@ -253,6 +253,9 @@ func immagine(path: String, w: float, h: float) -> TextureRect:
 
 func img_pedina(id: String, ridotta := false) -> String:
 	if id.length() > 1 and id[1] in ["M", "W", "N", "J"]:
+		# Napoleon at War: le pedine della Deluxe (Decision Games 2025) con la stessa opzione dell'edizione nuova
+		if pedine_2015 and ResourceLoader.exists("res://assets/naw/pedine_dg/%s.webp" % id):
+			return "res://assets/naw/pedine_dg/%s.webp" % id
 		return "res://assets/naw/pedine/%s.webp" % id
 	# i capi mostrano il retro quando sono demoralizzati o inattivi
 	if id.begins_with("c") and m != null and m.s["capi"].has(id):
@@ -1615,6 +1618,9 @@ func _menu_scheda_naw() -> void:
 		r2.add_child(bottone("Continua la partita salvata", _menu_continua, 17))
 	r2.add_child(bottone("Partita salvata su Firebase", _continua_firebase, 17))
 	r2.add_child(bottone("Le regole in breve", _menu_regole, 17))
+	r2.add_child(bottone("Pedine: " + ("Deluxe 2025" if pedine_2015 else "originali SPI"), func():
+		_cambia_pedine()
+		_menu_scheda_naw(), 17))
 	r2.add_child(bottone("Cambia gioco: Napoleon's Last Battles", func():
 		serie = "nlb"
 		_salva_opzioni()
@@ -2300,7 +2306,8 @@ func _menu_partita() -> void:
 		v.add_child(bottone("Mappa: " + ("ridisegnata in 3D (passa all'originale)" if mappa_nuova else "originale (passa a quella ridisegnata in 3D)"), func():
 			_chiudi_popup()
 			_cambia_mappa(), 18))
-	v.add_child(bottone("Pedine: " + ("edizione 2015 (passa alle originali)" if pedine_2015 else "originali (passa all'edizione 2015)"), func():
+	var nuova := "Deluxe 2025" if m is MotoreNaw else "edizione 2015"
+	v.add_child(bottone("Pedine: " + (("%s (passa alle originali)" % nuova) if pedine_2015 else ("originali (passa a %s)" % nuova)), func():
 		_chiudi_popup()
 		_cambia_pedine(), 18))
 	v.add_child(bottone("Inquadra la battaglia", func():

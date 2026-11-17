@@ -180,6 +180,9 @@ Il secondo gioco, dal modulo TTS «SPI's Napoleon At War» (mappe, pedine, regol
   coi giorni, ritirata notturna, linea di comunicazione fino a 2131), Jena-Auerstadt (notte senza boschi, nebbia,
   due campi con demoralizzazione separata e spostamento di colonna, opzioni A/B, Luigi Ferdinando, Bernadotte,
   binario di transito, uscite dopo la demoralizzazione, punti vittoria).
+- **Pedine Deluxe** (Decision Games 2025): ritagliate dai due fogli fustellati in `tools/naw/fogli_deluxe/` con
+  `tools/naw/pedine_deluxe.py` (trascrizione dei fogli blocco per blocco e abbinamento per sigla, tipo e forza:
+  tutte le 322 unità). Si scelgono con il tasto «Pedine» del menu, lo stesso dell'edizione 2015 di Last Battles.
 - **IA** (`scripts/ia_naw.gd`): quella di Last Battles con il terreno, l'impilamento e gli obiettivi di ogni gioco.
   Nello scambio conta le unità intere che perderebbe (niente divisioni da 11 sacrificate per una cavalleria da 2:
   meglio abbassare il rapporto), stima il raddoppio del difensore attaccato solo in salita o attraverso un
